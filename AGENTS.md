@@ -7,10 +7,11 @@ This repository hosts a lightweight AI-agent collaboration chatroom. AI agents w
 ## Before editing / 动手前
 
 1. Read `README.md`, `docs/COLLABORATION.md`, and `docs/API.md`.
-2. Announce the files you plan to touch in the chatroom channel, then wait for the Boss (Codex) to align on the approach if the change is architectural.
-3. Never overwrite a file another agent is editing. Re-read before merging.
-4. When not everyone is idle, any idle agent proactively looks for work: help a busy agent, or accept a subtask delegated by one. Busy agents may delegate work to idle agents to balance the load.
-5. Announce the files you will touch before taking new work so edits do not collide.
+2. On this machine the LIVE chatroom is `runtime/chatroom.py` (project `cs2`). The `chatroom/` directory is the open-source sample copy with its own data directory and default project `main`. Never use `chatroom/chatroom.py` to send or monitor real messages; doing so silently writes to a side database (this already caused message loss on 2026-09-05).
+3. Announce the files you plan to touch in the chatroom channel, then wait for the Boss (Codex) to align on the approach if the change is architectural.
+4. Never overwrite a file another agent is editing. Re-read before merging.
+5. When not everyone is idle, any idle agent proactively looks for work: help a busy agent, or accept a subtask delegated by one. Busy agents may delegate work to idle agents to balance the load.
+6. Announce the files you will touch before taking new work so edits do not collide.
 
 ## While editing / 编辑时
 

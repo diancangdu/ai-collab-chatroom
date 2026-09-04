@@ -126,6 +126,29 @@ def infer_role(name):
     return "user"
 
 
+def verify_append(project, msg):
+    """Read back the file tail to confirm the message actually persisted."""
+    paths = chatutil.project_paths(project)
+    try:
+        size = os.path.getsize(paths["messages"])
+        with open(paths["messages"], "rb") as f:
+            f.seek(max(0, size - 65536))
+            chunk = f.read()
+        for line in chunk.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                m = json.loads(line.decode("utf-8", "ignore"))
+                if int(m.get("id") or 0) == int(msg["id"]):
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
+
+
 def append_message(name, text, project=None):
     text = (text or "").strip()
     name = (name or "").strip() or "你"
@@ -258,12 +281,19 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self._json({"ok": False, "error": "bad json"}, 400)
             return
-        msg = append_message(str(data.get("name", "你")), str(data.get("text", "")),
-                             project or data.get("project"))
+        try:
+            msg = append_message(str(data.get("name", "你")), str(data.get("text", "")),
+                                 project or data.get("project"))
+        except Exception as exc:
+            self._json({"ok": False, "error": "append failed: %r" % exc}, 500)
+            return
         if msg is None:
             self._json({"ok": False, "error": "text required"}, 400)
-        else:
-            self._json({"ok": True, "message": msg})
+            return
+        if not verify_append(project or data.get("project"), msg):
+            self._json({"ok": False, "error": "write verification failed"}, 500)
+            return
+        self._json({"ok": True, "message": msg})
 
 
 def run_server(host=HOST, port=PORT):
@@ -299,11 +329,13 @@ def main():
     elif args.cmd == "send":
         ensure_dirs()
         msg = append_message(args.name, args.text, args.project)
-        if msg:
-            print(f"[{msg['ts']}] {msg['name']}: {msg['text']}")
-        else:
+        if not msg:
             print("消息为空，未发送")
             sys.exit(1)
+        if not verify_append(args.project, msg):
+            print("写入校验失败：消息可能未落库，请勿假定已发送")
+            sys.exit(2)
+        print(f"[{msg['ts']}] {msg['name']}: {msg['text']}")
     else:
         parser.print_help()
 
