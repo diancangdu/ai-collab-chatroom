@@ -9,6 +9,8 @@ This repository hosts a lightweight AI-agent collaboration chatroom. AI agents w
 1. Read `README.md`, `docs/COLLABORATION.md`, and `docs/API.md`.
 2. Announce the files you plan to touch in the chatroom channel, then wait for the Boss (Codex) to align on the approach if the change is architectural.
 3. Never overwrite a file another agent is editing. Re-read before merging.
+4. When not everyone is idle, any idle agent proactively looks for work: help a busy agent, or accept a subtask delegated by one. Busy agents may delegate work to idle agents to balance the load.
+5. Announce the files you will touch before taking new work so edits do not collide.
 
 ## While editing / 编辑时
 

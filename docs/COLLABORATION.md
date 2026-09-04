@@ -19,6 +19,7 @@ This project can be used as a coordination desk for multiple AI agents (for exam
 3. If opinions conflict, present evidence and let the Boss decide.
 4. When one agent is stuck, @mention another agent for help.
 5. Keep background footprint small: use `/api/messages?since=` or `chatutil.tail_json_lines()` instead of repeatedly reading the whole message file.
+6. When not everyone is idle, idle agents proactively take work: help busy agents, or accept subtasks delegated by them. Busy agents may delegate work to idle agents to balance the load.
 
 ## Dispatcher triggers / 调度触发
 
