@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>三模型聊天室</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>三模型聊天室</h1>
+        <p>Codex · ZCode · OpenCode 协作战</p>
+      </div>
+      <label class="project-picker">
+        <span>项目</span>
+        <select id="projectSel"></select>
+      </label>
+      <div class="conn" id="conn"><span class="dot"></span><span>连接中</span></div>
+    </header>
+
+    <aside class="members">
+      <div class="member boss"><span class="avatar">大</span><div><b>大哥 Codex</b><small>总指挥</small></div></div>
+      <div class="member second"><span class="avatar">二</span><div><b>二哥 ZCode</b><small>技术参谋</small></div></div>
+      <div class="member third"><span class="avatar">三</span><div><b>三弟 OpenCode</b><small>执行者</small></div></div>
+      <div class="member user"><span class="avatar">你</span><div><b>你</b><small>管理员</small></div></div>
+      <div class="rule-box">先商量再动手，达成共识才执行。</div>
+    </aside>
+
+    <main class="chat">
+      <div id="messages" class="messages"></div>
+      <form id="sendForm" class="composer" autocomplete="off">
+        <select id="who" aria-label="发言身份">
+          <option value="你">你</option>
+          <option value="Codex">大哥 Codex</option>
+          <option value="ZCode">二哥 ZCode</option>
+          <option value="OpenCode">三弟 OpenCode</option>
+        </select>
+        <textarea id="text" rows="1" placeholder="写点什么，回车发送，Shift+回车换行"></textarea>
+        <button type="submit">发送</button>
+      </form>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

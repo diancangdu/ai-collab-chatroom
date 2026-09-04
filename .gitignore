@@ -1,0 +1,7 @@
+config.json
+chatroom/data/*
+!chatroom/data/.gitkeep
+**/__pycache__/
+*.pyc
+.venv/
+.DS_Store
