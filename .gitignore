@@ -5,3 +5,4 @@ chatroom/data/*
 *.pyc
 .venv/
 .DS_Store
+runtime/
