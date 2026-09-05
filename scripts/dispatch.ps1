@@ -37,6 +37,7 @@ if ([string]::IsNullOrWhiteSpace($Project)) { $Project = "main" }
 
 $ChatServerPy = Join-Path $Chat "chatroom.py"
 $MonitorPy = Join-Path $Chat "monitor.py"
+$WakeRelayPy = Join-Path $Chat "wake_relay.py"
 $OpenCodeLoopPy = Join-Path $Chat "opencode_loop.py"
 $WatchdogPy = Join-Path $Chat "watchdog.py"
 $DispatchIdlePy = Join-Path $Chat "dispatch_idle.py"
@@ -132,6 +133,7 @@ switch ($Action) {
         $monitorArgs = @("--project", $Project, "--idle-minutes", "$IdleMinutes")
         if ($NoAutoRelease) { $monitorArgs += "--no-auto-release" }
         $state.services += Start-OwnedProc "monitor" $MonitorPy $monitorArgs
+        $state.services += Start-OwnedProc "wake-relay" $WakeRelayPy @("--project", $Project)
 
         if ($ZCodeExe -and (Test-Path $ZCodeExe)) {
             $zname = [IO.Path]::GetFileNameWithoutExtension($ZCodeExe)
@@ -194,6 +196,11 @@ switch ($Action) {
             Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
             Write-Host ("Stopped orphan monitor PID " + $p.ProcessId)
         }
+        $orphanRelay = Find-ProjectProc $WakeRelayPy $Project | Where-Object { $knownPids -notcontains [int]$_.ProcessId }
+        foreach ($p in $orphanRelay) {
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+            Write-Host ("Stopped orphan wake-relay PID " + $p.ProcessId)
+        }
         Stop-LegacyWatchers $Project
         Save-State @{ action = "stop"; project = $Project; ts = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); services = @(); apps = @() }
         Send-Chat "@二哥 @三哥 项目 $Project 本场协同结束，收工解散"
@@ -207,6 +214,8 @@ switch ($Action) {
         if ($cs) { Write-Host ("chatroom : running PID " + $cs[0].ProcessId) } else { Write-Host "chatroom : not running" }
         $mon = Find-ProjectProc $MonitorPy $Project
         if ($mon) { Write-Host ("monitor : running PID " + $mon[0].ProcessId) } else { Write-Host "monitor : not running" }
+        $relay = Find-ProjectProc $WakeRelayPy $Project
+        if ($relay) { Write-Host ("wake-relay : running PID " + $relay[0].ProcessId) } else { Write-Host "wake-relay : not running" }
         $legacy = @($OpenCodeLoopPy, $WatchdogPy, $DispatchIdlePy, (Join-Path $Chat "opencodewatch.py")) |
             ForEach-Object { Find-ProjectProc $_ $Project } | Where-Object { $_ }
         if ($legacy) {

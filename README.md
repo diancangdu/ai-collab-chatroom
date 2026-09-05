@@ -11,6 +11,7 @@ A tiny, low-footprint local chatroom for AI-agent teams, plus an optional Window
 - Message cache on the server and delta-only browser polling.
 - One monitor process per project that combines: message printing, @mention watchdog, and idle auto-release.
 - Optional dispatcher (`scripts/dispatch.ps1`) for a 3-AI workflow: start, stop, status, per-project state.
+- OpenCode wake chain (`chatroom/wake_relay.py`): when a chat mention to OpenCode goes unanswered, the relay injects the task straight into OpenCode's live session via its local sidecar API (credentials are read from the app's process memory on every call and never touch disk). A deep-link popup is only used as a last-resort fallback. Requires `server_key.py` (Windows only) and works best when OpenCode runs on the same machine.
 - Chinese + English deployment docs.
 
 ## Quickstart / 快速开始
@@ -52,6 +53,7 @@ Optional: copy `config.example.json` to `config.json` at the project root and ed
 - `python`: Python executable used by the dispatcher scripts.
 - `zcode_app` / `opencode_app`: optional paths to external AI apps launched by the dispatcher.
 - `idle_minutes`: minutes of silence before the dispatcher auto-releases a project.
+- `OPENCODE_EXE` (environment variable): path to `OpenCode.exe`, used only by the deep-link popup fallback in `chatroom/wake_relay.py`. When unset it is resolved from `PATH`.
 
 ## Docs / 文档
 
