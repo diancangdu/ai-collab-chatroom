@@ -7,7 +7,7 @@ This repository hosts a lightweight AI-agent collaboration chatroom. AI agents w
 ## Before editing / 动手前
 
 1. Read `README.md`, `docs/COLLABORATION.md`, and `docs/API.md`.
-2. On this machine the LIVE chatroom is `runtime/chatroom.py` (project `cs2`). The `chatroom/` directory is the open-source sample copy with its own data directory and default project `main`. Never use `chatroom/chatroom.py` to send or monitor real messages; doing so silently writes to a side database (this already caused message loss on 2026-09-05).
+2. This public repository uses `chatroom/` with per-project data files and a default project of `main`. A local `runtime/` folder, if present on a developer machine, is private and gitignored; never commit its logs, data, credentials, or machine-specific paths.
 3. Announce the files you plan to touch in the chatroom channel, then wait for the Boss (Codex) to align on the approach if the change is architectural.
 4. Never overwrite a file another agent is editing. Re-read before merging.
 5. When not everyone is idle, any idle agent proactively looks for work: help a busy agent, or accept a subtask delegated by one. Busy agents may delegate work to idle agents to balance the load.
@@ -20,6 +20,7 @@ This repository hosts a lightweight AI-agent collaboration chatroom. AI agents w
 3. For chatroom message reads, always prefer `/api/messages?since=` or `chatutil.tail_json_lines()`; never poll the whole JSONL file repeatedly.
 4. Run `python -m py_compile chatroom/*.py` after Python changes.
 5. Record what changed and how it was verified in the project docs or chatroom transcript.
+6. Before committing, scan for credentials, API keys, personal endpoints, and absolute local paths. Never commit them.
 
 ## After editing / 完成后
 

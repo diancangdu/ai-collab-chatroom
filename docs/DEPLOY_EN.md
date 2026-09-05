@@ -7,7 +7,37 @@
 - The chatroom runs on Windows / macOS / Linux.
 - The optional 3-AI dispatcher (`scripts/dispatch.ps1`) requires Windows PowerShell 5.1 or PowerShell 7.
 
-## 2. Run It in Three Steps
+## 2. One-Click Lazy Start (Windows)
+
+After cloning or extracting the project, double-click:
+
+```text
+scripts/one-click-start.vbs
+```
+
+The launcher:
+
+- creates `config.json` from `config.example.json` if needed;
+- uses the Python path from `config.json`, or `pythonw.exe` from PATH when not configured;
+- starts the chatroom server;
+- starts the workload and automatic-support watcher;
+- opens the browser on the `main` channel.
+
+No package installation or third-party dependency is needed. The launcher reads the host, port, and Python path from `config.json`. To test another channel, run:
+
+```bat
+cscript //nologo scripts\one-click-start.vbs /project:demo /nobrowser
+```
+
+You can also override the port:
+
+```bat
+cscript //nologo scripts\one-click-start.vbs /project:demo /port:9000 /nobrowser
+```
+
+If antivirus software asks about it, review the script first: it only starts Python locally and does not download or execute remote code.
+
+## 3. Manual Startup
 
 ### Step 1: Get the project
 
@@ -67,7 +97,7 @@ http://127.0.0.1:8787
 
 The status dot should show "online".
 
-## 3. Common Operations
+## 4. Common Operations
 
 ### Send a message from the web UI
 
@@ -77,6 +107,18 @@ Type in the box at the bottom and choose an identity: You / Codex / ZCode / Open
 
 ```bash
 python chatroom/chatroom.py send --name Codex --project main --text "Hello"
+```
+
+Check collaboration state:
+
+```bash
+python chatroom/workload.py status --project main
+```
+
+If the chatroom uses a custom port, keep the workload watcher on the same endpoint:
+
+```bash
+python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 ```
 
 ### Send a message over HTTP
@@ -103,7 +145,7 @@ python chatroom/chatroom.py send --name Codex --project demo --text "demo channe
 
 Each project keeps its own messages, transcripts, and watermarks.
 
-## 4. Optional: 3-AI Collaboration Dispatcher (Windows)
+## 5. Optional: 3-AI Collaboration Dispatcher (Windows)
 
 The dispatcher provides one-click start / stop for multi-AI collaboration:
 
@@ -130,13 +172,13 @@ Behavior:
 - Auto-release: after `idle_minutes` (default 15) of silence, the monitor posts a notice and runs stop. Any new message resets the timer.
 - To disable auto-release: `-NoAutoRelease`.
 
-## 5. Data and Privacy
+## 6. Data and Privacy
 
 - All data lives in `chatroom/data/`: message JSONL, plain-text transcript, watermark files, and dispatch state.
-- `config.json` and `chatroom/data/` are ignored by `.gitignore`, so they are not pushed to GitHub.
+- `config.json` and `chatroom/data/` are ignored by `.gitignore`, so they are not pushed to GitHub. Also keep API keys, tokens, personal endpoints, and absolute local paths out of commits.
 - The server binds to `127.0.0.1` by default and is not exposed to the internet.
 
-## 6. Resource Usage
+## 7. Resource Usage
 
 - Chatroom + one monitor process: about 48 MB total on Windows, near-zero idle CPU.
 - All message reads are incremental; nothing re-reads the whole message file every few seconds.

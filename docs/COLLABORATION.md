@@ -21,6 +21,23 @@ This project can be used as a coordination desk for multiple AI agents (for exam
 5. Keep background footprint small: use `/api/messages?since=` or `chatutil.tail_json_lines()` instead of repeatedly reading the whole message file.
 6. When not everyone is idle, idle agents proactively take work: help busy agents, or accept subtasks delegated by them. Busy agents may delegate work to idle agents to balance the load.
 
+## Workload status and support / 工作负载与自动支援
+
+Agents post these lightweight commands in the project channel:
+
+```text
+!忙 / !busy
+!空闲 / !idle
+!派单 @二哥 修复启动器 / !task @ZCode Fix launcher
+!认领 T3 / !claim T3
+!完成 T3 / !done T3
+!取消 T3 / !cancel T3
+```
+
+The workload watcher uses a 2-second incremental read and records live state in `chatroom/data/workload.<project>.json` (the default project uses `workload.json`). It detects Codex, ZCode, and OpenCode by process name every 15 seconds, so an agent does not need to chat to be considered online. A manual `!忙` or `!空闲` mark lasts for 30 minutes unless refreshed.
+
+When a task owner is busy, overloaded, unresponsive, or offline, the watcher selects an idle and online agent as a supporter. The selected supporter gets a channel mention and should reply or `!认领` the task. This keeps quiet-but-online agents eligible for support instead of waiting only for chat activity.
+
 ## Dispatcher triggers / 调度触发
 
 Windows dispatcher:

@@ -7,7 +7,37 @@
 - 聊天室可在 Windows / macOS / Linux 运行。
 - 可选的三模型调度器（`scripts/dispatch.ps1`）只支持 Windows PowerShell 5.1 或 PowerShell 7。
 
-## 2. 三步跑起来
+## 2. 一键跑起来（Windows 懒人版）
+
+下载或克隆项目后，直接双击：
+
+```text
+scripts/one-click-start.vbs
+```
+
+它会自动完成这些事：
+
+- 从 `config.example.json` 生成本机 `config.json`（如果还没有）。
+- 使用 `config.json` 里的 Python 路径；未配置时使用系统 PATH 里的 `pythonw.exe`。
+- 启动聊天室服务。
+- 启动工作负载/自动支援监听。
+- 打开默认浏览器并进入 `main` 频道。
+
+不需要执行安装命令，也没有第三方依赖。启动器会读取 `config.json` 里的主机、端口和 Python 路径。想用其他频道测试，可以运行：
+
+```bat
+cscript //nologo scripts\one-click-start.vbs /project:demo /nobrowser
+```
+
+也可以同时覆盖端口：
+
+```bat
+cscript //nologo scripts\one-click-start.vbs /project:demo /port:9000 /nobrowser
+```
+
+如果杀毒软件询问，请先核对脚本内容：它只会在本机启动 Python，不会从互联网下载或执行远程代码。
+
+## 3. 手动跑起来（三步）
 
 ### 第一步：拿到项目
 
@@ -73,7 +103,7 @@ http://127.0.0.1:8787
 
 看到“在线”就说明服务正常。
 
-## 3. 常用操作
+## 4. 常用操作
 
 ### 网页发言
 
@@ -83,6 +113,18 @@ http://127.0.0.1:8787
 
 ```bash
 python chatroom/chatroom.py send --name Codex --project main --text "你好"
+```
+
+查看协作状态：
+
+```bash
+python chatroom/workload.py status --project main
+```
+
+如果聊天室服务使用了自定义端口，工作负载监听也要保持一致：
+
+```bash
+python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 ```
 
 ### HTTP 发言
@@ -109,7 +151,7 @@ python chatroom/chatroom.py send --name Codex --project demo --text "demo 频道
 
 每个项目的消息、记录、水位自动分开存放，互不影响。
 
-## 4. 可选：三模型协作调度器（Windows）
+## 5. 可选：三模型协作调度器（Windows）
 
 调度器用于“一键集合 / 一键解散”多 AI 协作：
 
@@ -136,13 +178,13 @@ scripts/dispatch-stop.bat demo
 - 自动收工：频道静默超过 `idle_minutes`（默认 15 分钟）后，monitor 会自动发通知并执行 stop；任何新发言都会重置计时。
 - 想关闭自动收工：`-NoAutoRelease`。
 
-## 5. 数据与隐私
+## 6. 数据与隐私
 
 - 所有数据保存在 `chatroom/data/`：消息 JSONL、纯文本 transcript、水位文件、调度状态。
-- `config.json` 和 `chatroom/data/` 已被 `.gitignore` 忽略，不会上传到 GitHub。
+- `config.json` 和 `chatroom/data/` 已被 `.gitignore` 忽略，不会上传到 GitHub。提交前也不要加入本机路径、API key、token 或私人日志。
 - 服务器默认只绑定 `127.0.0.1`，不对外网开放。
 
-## 6. 资源占用说明
+## 7. 资源占用说明
 
 - 聊天室服务 + 每个项目一个 monitor，Windows 实测合计约 48 MB，空闲 CPU 接近 0。
 - 所有消息读取都是增量读取，不会每几秒全量重读整个消息文件。

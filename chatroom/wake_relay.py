@@ -77,8 +77,7 @@ def mentions_zcode(text):
 
 def zcode_model_provider():
     """Read-only peek at ZCode's session model selection. Returns the
-    providerId (e.g. 'builtin:zai-start-plan' when the user is on the free
-    official channel) or None."""
+    providerId and modelId, or empty values when unavailable."""
     try:
         db = os.path.join(os.environ.get("USERPROFILE", ""), r".zcode\cli\db\db.sqlite")
         con = sqlite3.connect(r"file:%s?mode=ro" % db, uri=True)
@@ -115,16 +114,15 @@ def zcode_wake(project):
             subprocess.run(
                 [sys.executable, str(Path(__file__).resolve().parent / "chatroom.py"),
                  "send", "--name", "Codex", "--project", project,
-                 "--text", "@二哥 官方模型兼容提示：你当前用官方免费通道（%s / %s）。该通道繁忙时会拒绝启动回合"
-                 "（官方容量限制 Start Plan busy），这正是切模型后\"唤不醒\"的原因——不是配置坏了。"
-                 "选择：稍后自动值守会再提醒，或你在 ZCode 里切回 glm-5.3-flash（tokenrhythm）。"
+                 "--text", "@二哥 模型兼容提示：你当前使用内置官方通道（%s / %s）。该通道繁忙时可能拒绝启动回合，"
+                 "这不是配置坏了。请稍后重试，或切换到当前账号可正常启动回合的通道/模型。"
                  % (provider, model_id)],
                 capture_output=True, text=True, timeout=15,
             )
         except Exception:
             pass
     else:
-        log(project, "zcode compat check ok (tokenrhythm active), no action")
+        log(project, "zcode compat check ok (custom provider active), no action")
     return True
 
 

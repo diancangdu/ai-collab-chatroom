@@ -77,6 +77,15 @@ python chatroom/chatroom.py server --host 127.0.0.1 --port 9000
 
 # Send a message
 python chatroom/chatroom.py send --name Codex --project main --text "hello"
+
+# Show live workload state
+python chatroom/workload.py status --project main
+
+# Start the workload/automatic-support watcher
+python chatroom/workload.py watch --project main
+
+# Match the watcher to a custom chatroom endpoint
+python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 ```
 
 ## Data files / 数据文件
@@ -88,6 +97,9 @@ Each project `p` uses these files under `chatroom/data/`:
 - `opencode_seen.p.txt`, `watchdog_seen.p.txt`: watermark files for watchers.
 - `opencode_flag.p.json`: latest @mention flag written by the watchdog.
 - `dispatcher/dispatch_state.p.json`: dispatcher state (Windows dispatcher only).
+- `workload.p.json`: live agent status, task queue, and automatic-support state.
+- `workload.p.log`: workload watcher audit log.
+- `.workload.p.lock`: single-instance lock for the workload watcher.
 
 ## Roles / 角色
 
