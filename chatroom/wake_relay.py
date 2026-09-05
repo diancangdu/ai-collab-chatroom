@@ -12,7 +12,7 @@ import base64
 import json
 import os
 import re
-import shutil
+import sqlite3
 import subprocess
 import sys
 import time
@@ -31,6 +31,7 @@ WATCHER_FALLBACK_TIMEOUT = 180
 WATCHER_GRACE_TIMEOUT = 90
 FIRE_COOLDOWN = 180
 API_COOLDOWN = 30
+AUTOACK_COOLDOWN = 45
 ACTIVITY_WINDOW = 20
 # OpenCode.exe location: override with the OPENCODE_EXE environment variable,
 # otherwise resolve from PATH. Needed for the deep-link popup fallback.
@@ -39,6 +40,9 @@ WATCHER_MARKS = ("watchdog.py", "opencodewatch.py")
 ENTER_ATTEMPTS = 8
 ENTER_RETRY_SECONDS = 1.2
 PING_RE = re.compile(r"^@(三弟|三哥|opencode)\b", re.IGNORECASE)
+ZCODE_ROUTE_RE = re.compile(r"^@(二哥|zcode)\b", re.IGNORECASE)
+ZCODE_WORKSPACE = os.environ.get("ZCODE_WORKSPACE") or os.getcwd()
+ZCODE_SESSION_ID = os.environ.get("ZCODE_SESSION_ID") or ""
 
 
 def log(project, text):
@@ -59,6 +63,111 @@ def mentions_opencode(text):
     if t.startswith("@二哥") and ("集合开工" in t or "集合令" in t):
         return True
     return False
+
+
+def mentions_zcode(text):
+    """@二哥 direct address, or a boss broadcast addressed to him."""
+    t = (text or "").strip().lower()
+    if ZCODE_ROUTE_RE.match(t):
+        return True
+    if t.startswith("@二哥") and ("集合开工" in t or "集合令" in t):
+        return True
+    return False
+
+
+def zcode_model_provider():
+    """Read-only peek at ZCode's session model selection. Returns the
+    providerId (e.g. 'builtin:zai-start-plan' when the user is on the free
+    official channel) or None."""
+    try:
+        db = os.path.join(os.environ.get("USERPROFILE", ""), r".zcode\cli\db\db.sqlite")
+        con = sqlite3.connect(r"file:%s?mode=ro" % db, uri=True)
+        # Resolve the duty session dynamically: the one with the newest queue
+        # activity, falling back to the explicit override.
+        row = con.execute(
+            "SELECT session_id FROM session_input ORDER BY time_created DESC LIMIT 1"
+        ).fetchone()
+        sess = row[0] if row else ZCODE_SESSION_ID
+        row = con.execute(
+            "SELECT data FROM session_entry WHERE session_id=? AND type='runtime/model_selection'",
+            (sess,),
+        ).fetchone()
+        con.close()
+        if row:
+            data = json.loads(row[0])
+            return str(data.get("providerId", "")), str(data.get("modelId", ""))
+    except Exception:
+        pass
+        return None, None
+
+
+def zcode_wake(project):
+    """ZCode only accepts input through its own window. The deep link was
+    removed on user request (it popped an external-folder confirmation dialog
+    on every mention). What remains: a chatroom guidance note when the active
+    model is the builtin official channel, which may not be able to start
+    turns."""
+    provider, model_id = zcode_model_provider()
+    official = bool(provider and provider.startswith("builtin:"))
+    if official:
+        log(project, "zcode on official channel (%s / %s), no deep link fired" % (provider, model_id))
+        try:
+            subprocess.run(
+                [sys.executable, str(Path(__file__).resolve().parent / "chatroom.py"),
+                 "send", "--name", "Codex", "--project", project,
+                 "--text", "@二哥 官方模型兼容提示：你当前用官方免费通道（%s / %s）。该通道繁忙时会拒绝启动回合"
+                 "（官方容量限制 Start Plan busy），这正是切模型后\"唤不醒\"的原因——不是配置坏了。"
+                 "选择：稍后自动值守会再提醒，或你在 ZCode 里切回 glm-5.3-flash（tokenrhythm）。"
+                 % (provider, model_id)],
+                capture_output=True, text=True, timeout=15,
+            )
+        except Exception:
+            pass
+    else:
+        log(project, "zcode compat check ok (tokenrhythm active), no action")
+    return True
+
+
+COMMANDER_NAMES = {
+    "二哥": "ZCode", "zcode": "ZCode",
+    "三哥": "OpenCode", "opencode": "OpenCode",
+    "大哥": "Codex", "codex": "Codex",
+}
+APPOINT_RE = re.compile(
+    r"任命\s*(二哥|三哥|大哥|zcode|opencode|codex)\s*为?\s*总指挥"
+    r"|总指挥\s*[改为换成]\s*(二哥|三哥|大哥|zcode|opencode|codex)",
+    re.IGNORECASE,
+)
+
+
+def commander_file(project):
+    paths = chatutil.project_paths(project)
+    stem = Path(paths["opencode_seen"]).with_name("commander.json")
+    if project != chatutil.DEFAULT_PROJECT:
+        stem = Path(paths["opencode_seen"]).with_name("commander.%s.json" % project)
+    return stem
+
+
+def load_commander(project):
+    try:
+        return str(json.loads(commander_file(project).read_text(encoding="utf-8")).get("name", "Codex"))
+    except Exception:
+        return "Codex"
+
+
+def save_commander(project, name):
+    path = commander_file(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"name": name, "ts": time.strftime("%Y-%m-%d %H:%M:%S")}, ensure_ascii=False), encoding="utf-8")
+
+
+def detect_appointment(text):
+    """Only the user appoints the commander; returns the app name or None."""
+    m = APPOINT_RE.search((text or "").strip())
+    if m:
+        raw = (m.group(1) or m.group(2) or "").lower()
+        return COMMANDER_NAMES.get(raw)
+    return None
 
 
 def seen_path(project):
@@ -245,6 +354,8 @@ def main():
     pending = None
     last_fire = 0.0
     last_api = 0.0
+    last_zcode = 0.0
+    last_ack = 0.0
     last_opencode_ts = None
     def wake_now(text):
         # Primary channel: API direct injection into the live session.
@@ -266,6 +377,55 @@ def main():
                 if pending and msg_id >= pending["id"]:
                     pending = None
                     log(project, "OpenCode responded at id %d, pending cleared" % msg_id)
+                continue
+            if name == "你" and text.strip() and len(text.strip()) >= 6:
+                nowt = time.time()
+                appt = detect_appointment(text)
+                if appt:
+                    save_commander(project, appt)
+                    announcement = ("奉用户令：任命 %s 为总指挥（项目 %s），即日生效。"
+                                    "指挥职责（拍板/派活/集合收工令）由 %s 行使，"
+                                    "原总指挥转执行位，全员按此适配。" % (appt, project, appt))
+                    try:
+                        subprocess.run(
+                            [sys.executable, str(Path(__file__).resolve().parent / "chatroom.py"),
+                             "send", "--name", "Codex", "--project", project, "--text", announcement],
+                            capture_output=True, text=True, timeout=15,
+                        )
+                    except Exception:
+                        pass
+                    last_ack = nowt
+                    log(project, "commander appointed: %s" % appt)
+                    continue
+                if (nowt - last_ack >= AUTOACK_COOLDOWN
+                        and not mentions_zcode(text)
+                        and not mentions_opencode(text)):
+                    # Boss's rule: proactively help without being asked.
+                    # Push the task into OpenCode's live session and call for
+                    # idle-brother claims in one automatic stroke.
+                    if api_wake(project, text[:200]):
+                        last_api = nowt
+                    ack = ("[自动值守] 已收到（id %d）：任务已直派三弟；二哥巡检在岗，"
+                           "谁空闲谁领活（互助条款）；现任总指挥：%s（桌面端活跃时跟进）。"
+                           % (msg_id, load_commander(project)))
+                    try:
+                        subprocess.run(
+                            [sys.executable, str(Path(__file__).resolve().parent / "chatroom.py"),
+                             "send", "--name", "系统", "--project", project, "--text", ack],
+                            capture_output=True, text=True, timeout=15,
+                        )
+                    except Exception:
+                        pass
+                    last_ack = nowt
+                    log(project, "auto-dispatch for user message id %d" % msg_id)
+                continue
+            if mentions_zcode(text):
+                now = time.time()
+                if now - last_zcode >= 60:
+                    zcode_wake(project)
+                    last_zcode = now
+                else:
+                    log(project, "zcode mention id %d skipped, cooldown 60s" % msg_id)
                 continue
             if mentions_opencode(text):
                 now = time.time()
@@ -298,6 +458,21 @@ def main():
                     last_api = now
                     pending = None
             elif now - last_fire >= args.cooldown:
+                if pending.get("popup"):
+                    # Role-swap clause: OpenCode missed the grace window, so
+                    # the task hands over to ZCode automatically.
+                    handover = ("[自动值守] 三弟超时未应（id %d），任务转交二哥"
+                                "（角色互换条款）：请读取 transcript 尾部认领处理。" % pending["id"])
+                    try:
+                        subprocess.run(
+                            [sys.executable, str(Path(__file__).resolve().parent / "chatroom.py"),
+                             "send", "--name", "系统", "--project", project, "--text", handover],
+                            capture_output=True, text=True, timeout=15,
+                        )
+                    except Exception:
+                        pass
+                    zcode_wake(project)
+                    last_zcode = now
                 wake_now(pending["text"])
                 last_fire = now
                 pending = None
