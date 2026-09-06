@@ -65,7 +65,22 @@ cp config.example.json config.json
   "python": "python",
   "zcode_app": "C:/Path/To/ZCode.exe",
   "opencode_app": "C:/Path/To/OpenCode.exe",
-  "idle_minutes": 15
+  "idle_minutes": 60,
+  "commander_rules": [
+    {
+      "id": "RULE_012",
+      "title": "Commander completion gate",
+      "must_execute": [
+        "Wait for every assigned sibling to confirm completion.",
+        "Resolve every sibling review comment.",
+        "Announce completion only after all sibling tasks are done."
+      ],
+      "forbidden_actions": [
+        "Announce completion based only on the commander's own work.",
+        "Ignore unconfirmed or incomplete sibling tasks."
+      ]
+    }
+  ]
 }
 ```
 
@@ -73,7 +88,8 @@ cp config.example.json config.json
 - `port`：网页端口，默认 8787。
 - `python`：调度器启动 Python 进程时使用的解释器；如果 `python` 不在 PATH，改成完整路径。
 - `zcode_app` / `opencode_app`：可选。填写后，调度器 start 会自动拉起这两个 AI 应用；留空则跳过。
-- `idle_minutes`：频道静默多少分钟后自动解除调动，默认 15。
+- `idle_minutes`：频道静默多少分钟后自动解除调动，默认 60。
+- `commander_rules`：可选的总指挥硬规则。`RULE_012` 要求所有被派任务的兄弟都确认完成、复核意见处理完毕后，总指挥才能宣布完成或收工。
 
 ### 第三步：启动聊天室
 
@@ -175,7 +191,7 @@ scripts/dispatch-stop.bat demo
 - `start`：确保聊天室在线，为该项目启动一个 monitor 值守进程，按 `config.json` 里的 `zcode_app` / `opencode_app` 拉起外部 AI 应用，并往频道发集合消息。
 - `stop`：只停当前项目的 monitor，聊天室服务保留，其他项目不受影响。
 - `status`：查看聊天室、monitor、外部应用运行状态。
-- 自动收工：频道静默超过 `idle_minutes`（默认 15 分钟）后，monitor 会自动发通知并执行 stop；任何新发言都会重置计时。
+- 自动收工：频道静默超过 `idle_minutes`（默认 60 分钟）后，monitor 会自动发通知并执行 stop；任何新发言都会重置计时。
 - 想关闭自动收工：`-NoAutoRelease`。
 
 ## 6. 数据与隐私

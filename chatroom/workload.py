@@ -423,6 +423,9 @@ def process_message(state, project, msg, now):
         agent["last_seen"] = str(msg.get("ts") or stamp(now))
         agent["last_seen_epoch"] = now
         agent["last_message_id"] = int(msg.get("id") or 0)
+        for task in state["tasks"].values():
+            if task.get("owner") == sender and task.get("status") in ("open", "supporting"):
+                task["acknowledged"] = True
         if BUSY_RE.match(text):
             agent["manual_status"] = "busy"
             agent["manual_until_epoch"] = now + MANUAL_STATUS_SECONDS

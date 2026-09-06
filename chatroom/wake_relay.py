@@ -12,6 +12,7 @@ import base64
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -43,6 +44,7 @@ PING_RE = re.compile(r"^@(三弟|三哥|opencode)\b", re.IGNORECASE)
 ZCODE_ROUTE_RE = re.compile(r"^@(二哥|zcode)\b", re.IGNORECASE)
 ZCODE_WORKSPACE = os.environ.get("ZCODE_WORKSPACE") or os.getcwd()
 ZCODE_SESSION_ID = os.environ.get("ZCODE_SESSION_ID") or ""
+ZCODE_SESSION_LOOKBACK_SECONDS = 24 * 60 * 60
 
 
 def log(project, text):
@@ -76,25 +78,51 @@ def mentions_zcode(text):
 
 
 def zcode_model_provider():
-    """Read-only peek at ZCode's session model selection. Returns the
-    providerId and modelId, or empty values when unavailable."""
+    """Dynamically inspect ZCode's active model selection.
+
+    An explicit ZCODE_SESSION_ID wins. Otherwise, inspect non-archived sessions
+    updated in the lookback window and prefer a non-official provider, so a new
+    compatible session is not shadowed by an older official duty session.
+    """
     try:
         db = os.path.join(os.environ.get("USERPROFILE", ""), r".zcode\cli\db\db.sqlite")
         con = sqlite3.connect(r"file:%s?mode=ro" % db, uri=True)
-        # Resolve the duty session dynamically: the one with the newest queue
-        # activity, falling back to the explicit override.
-        row = con.execute(
-            "SELECT session_id FROM session_input ORDER BY time_created DESC LIMIT 1"
-        ).fetchone()
-        sess = row[0] if row else ZCODE_SESSION_ID
-        row = con.execute(
-            "SELECT data FROM session_entry WHERE session_id=? AND type='runtime/model_selection'",
-            (sess,),
-        ).fetchone()
+        if os.environ.get("ZCODE_SESSION_ID"):
+            sess = ZCODE_SESSION_ID
+            row = con.execute(
+                "SELECT data FROM session_entry WHERE session_id=? AND type='runtime/model_selection' ORDER BY time_updated DESC LIMIT 1",
+                (sess,),
+            ).fetchone()
+            rows = [(row[0], row[0])] if row else []
+        else:
+            cutoff = time.time() * 1000 - ZCODE_SESSION_LOOKBACK_SECONDS * 1000
+            rows = con.execute(
+                """
+                SELECT entry.data, entry.time_updated
+                FROM session_entry AS entry
+                JOIN session AS app_session ON app_session.id = entry.session_id
+                WHERE entry.type='runtime/model_selection'
+                  AND app_session.time_archived IS NULL
+                  AND app_session.time_updated >= ?
+                ORDER BY entry.time_updated DESC
+                LIMIT 100
+                """,
+                (cutoff,),
+            ).fetchall()
         con.close()
-        if row:
-            data = json.loads(row[0])
-            return str(data.get("providerId", "")), str(data.get("modelId", ""))
+        candidates = []
+        for raw_data, _updated_at in rows:
+            try:
+                data = json.loads(raw_data)
+            except Exception:
+                continue
+            provider = str(data.get("providerId", ""))
+            model_id = str(data.get("modelId", ""))
+            if provider or model_id:
+                candidates.append((provider.startswith("builtin:"), provider, model_id))
+        if candidates:
+            official, provider, model_id = min(candidates, key=lambda item: (item[0],))
+            return provider, model_id
     except Exception:
         pass
         return None, None
@@ -122,7 +150,7 @@ def zcode_wake(project):
         except Exception:
             pass
     else:
-        log(project, "zcode compat check ok (custom provider active), no action")
+        log(project, "zcode compatible provider active (%s / %s), no action" % (provider, model_id))
     return True
 
 

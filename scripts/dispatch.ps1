@@ -2,7 +2,7 @@
     [ValidateSet("start","stop","status")]
     [string]$Action = "status",
     [string]$Project = "",
-    [int]$IdleMinutes = 15,
+    [int]$IdleMinutes = 60,
     [switch]$NoAutoRelease
 )
 $ErrorActionPreference = "Continue"

@@ -4,5 +4,20 @@
   "python": "python",
   "zcode_app": "",
   "opencode_app": "",
-  "idle_minutes": 15
+  "idle_minutes": 60,
+  "commander_rules": [
+    {
+      "id": "RULE_012",
+      "title": "Commander completion gate",
+      "must_execute": [
+        "Wait for every assigned sibling to confirm completion.",
+        "Resolve every sibling review comment.",
+        "Announce completion only after all sibling tasks are done."
+      ],
+      "forbidden_actions": [
+        "Announce completion based only on the commander's own work.",
+        "Ignore unconfirmed or incomplete sibling tasks."
+      ]
+    }
+  ]
 }

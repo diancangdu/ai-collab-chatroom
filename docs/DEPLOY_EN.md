@@ -65,7 +65,22 @@ The defaults work out of the box. Common fields you may edit:
   "python": "python",
   "zcode_app": "C:/Path/To/ZCode.exe",
   "opencode_app": "C:/Path/To/OpenCode.exe",
-  "idle_minutes": 15
+  "idle_minutes": 60,
+  "commander_rules": [
+    {
+      "id": "RULE_012",
+      "title": "Commander completion gate",
+      "must_execute": [
+        "Wait for every assigned sibling to confirm completion.",
+        "Resolve every sibling review comment.",
+        "Announce completion only after all sibling tasks are done."
+      ],
+      "forbidden_actions": [
+        "Announce completion based only on the commander's own work.",
+        "Ignore unconfirmed or incomplete sibling tasks."
+      ]
+    }
+  ]
 }
 ```
 
@@ -73,7 +88,8 @@ The defaults work out of the box. Common fields you may edit:
 - `port`: web port; default is 8787.
 - `python`: interpreter used by the dispatcher. Use a full path if `python` is not on PATH.
 - `zcode_app` / `opencode_app`: optional. When set, the dispatcher launches these AI apps on start; leave empty to skip.
-- `idle_minutes`: minutes of silence before auto-releasing a project; default 15.
+- `idle_minutes`: minutes of silence before auto-releasing a project; default 60.
+- `commander_rules`: optional hard rules for the active commander. `RULE_012` requires every assigned sibling agent to confirm completion and every review comment to be resolved before completion is announced.
 
 ### Step 3: Start the chatroom
 
@@ -169,7 +185,7 @@ Behavior:
 - `start`: ensures the chatroom is online, starts one monitor process for the project, launches the external AI apps configured in `zcode_app` / `opencode_app`, and posts a "gather" message.
 - `stop`: stops only this project's monitor. The shared chatroom stays online and other projects are untouched.
 - `status`: shows chatroom, monitor, and app status.
-- Auto-release: after `idle_minutes` (default 15) of silence, the monitor posts a notice and runs stop. Any new message resets the timer.
+- Auto-release: after `idle_minutes` (default 60) of silence, the monitor posts a notice and runs stop. Any new message resets the timer.
 - To disable auto-release: `-NoAutoRelease`.
 
 ## 6. Data and Privacy

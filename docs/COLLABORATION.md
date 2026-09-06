@@ -57,7 +57,8 @@ Behavior:
 
 - `start` posts a "gather" message to the project channel and starts one monitor process.
 - Any new message resets the idle timer.
-- After `idle_minutes` (default 15) of silence, the monitor posts a notice and runs `stop` automatically.
+- After `idle_minutes` (default 60) of silence, the monitor posts a notice and runs `stop` automatically.
+- The active commander must not announce completion until every assigned sibling confirms completion and all review comments are resolved. Store project-specific commander rules under `commander_rules` in `config.json`.
 - `stop` only stops the current project's monitor; the shared chatroom and other projects are untouched.
 
 ## Suggested agent instructions / 建议写入 AGENTS.md 的约定

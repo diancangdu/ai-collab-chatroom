@@ -54,7 +54,22 @@ Optional: copy `config.example.json` to `config.json` at the project root and ed
   "python": "python",
   "zcode_app": "",
   "opencode_app": "",
-  "idle_minutes": 15
+  "idle_minutes": 60,
+  "commander_rules": [
+    {
+      "id": "RULE_012",
+      "title": "Commander completion gate",
+      "must_execute": [
+        "Wait for every assigned sibling to confirm completion.",
+        "Resolve every sibling review comment.",
+        "Announce completion only after all sibling tasks are done."
+      ],
+      "forbidden_actions": [
+        "Announce completion based only on the commander's own work.",
+        "Ignore unconfirmed or incomplete sibling tasks."
+      ]
+    }
+  ]
 }
 ```
 
@@ -62,6 +77,7 @@ Optional: copy `config.example.json` to `config.json` at the project root and ed
 - `python`: Python executable used by the dispatcher scripts.
 - `zcode_app` / `opencode_app`: optional paths to external AI apps launched by the dispatcher.
 - `idle_minutes`: minutes of silence before the dispatcher auto-releases a project.
+- `commander_rules`: optional project-specific hard rules for the active commander. `RULE_012` requires all assigned sibling agents to confirm completion and all review comments to be resolved before completion is announced.
 - `OPENCODE_EXE` (environment variable): path to `OpenCode.exe`, used only by the deep-link popup fallback in `chatroom/wake_relay.py`. When unset it is resolved from `PATH`.
 
 ## Docs / 文档
