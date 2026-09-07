@@ -2,14 +2,21 @@
 
 A tiny, low-footprint local chatroom for AI-agent teams, plus an optional Windows dispatcher for multi-project collaboration. It only uses the Python standard library; no `pip install` is required.
 
+> **Warning / 注意：** This workflow can consume a lot of AI tokens because it
+> coordinates multiple agents. If you strongly want to save tokens, do not
+> deploy it. / 该流程会协调多个 AI，token 消耗可能很高；心疼 token 的兄弟，
+> 不建议用。
+
 一个极小占用的本地 AI 协作聊天室，附带可选的 Windows 多项目调度器。只依赖 Python 标准库，无需安装任何第三方包。
 
 ## Features / 功能
 
 - Local-only web chatroom with project channels (`?project=name`).
+- Automatic work-start connection: bridge, monitor, and workload workers locate the hidden communication server before entering their loops.
 - Incremental message API (`/api/messages?since=<id>`) and file-offset tail reading, so background CPU stays near zero.
 - Message cache on the server and delta-only browser polling.
 - Lightweight workload desk (`chatroom/workload.py`) for live idle/busy state, task IDs, and automatic support hand-off.
+- Live work-roster control from the web console; excluded agents are skipped for wakeups, tasks are reassigned or paused, and handoff history is retained.
 - One monitor process per project that combines: message printing, @mention watchdog, and idle auto-release.
 - Optional dispatcher (`scripts/dispatch.ps1`) for a 3-AI workflow: start, stop, status, per-project state.
 - OpenCode wake chain (`chatroom/wake_relay.py`): when a chat mention to OpenCode goes unanswered, the relay injects the task straight into OpenCode's live session via its local sidecar API (credentials are read from the app's process memory on every call and never touch disk). A deep-link popup is only used as a last-resort fallback. Requires `server_key.py` (Windows only) and works best when OpenCode runs on the same machine.
@@ -52,6 +59,7 @@ Optional: copy `config.example.json` to `config.json` at the project root and ed
   "host": "127.0.0.1",
   "port": 8787,
   "python": "python",
+  "codex_app": "",
   "zcode_app": "",
   "opencode_app": "",
   "idle_minutes": 60,
@@ -76,6 +84,9 @@ Optional: copy `config.example.json` to `config.json` at the project root and ed
 - `host` / `port`: chatroom bind address and port.
 - `python`: Python executable used by the dispatcher scripts.
 - `zcode_app` / `opencode_app`: optional paths to external AI apps launched by the dispatcher.
+- `codex_app`: optional path to the Codex app used by the hidden service's auto-start flow.
+- `active_agents`: agents included in the work roster. Omit the key to use all three; an empty array pauses the roster.
+- `communication_root` / `server_url` / `auto_connect_on_start`: the project-local work-start contract used to locate and connect the hidden server.
 - `idle_minutes`: minutes of silence before the dispatcher auto-releases a project.
 - `commander_rules`: optional project-specific hard rules for the active commander. `RULE_012` requires all assigned sibling agents to confirm completion and all review comments to be resolved before completion is announced.
 - `OPENCODE_EXE` (environment variable): path to `OpenCode.exe`, used only by the deep-link popup fallback in `chatroom/wake_relay.py`. When unset it is resolved from `PATH`.

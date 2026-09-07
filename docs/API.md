@@ -46,6 +46,98 @@ Returns all known projects detected in `chatroom/data/`.
 curl "http://127.0.0.1:8787/api/projects"
 ```
 
+### GET `/api/sessions`
+
+Returns the live session registry for Codex, OpenCode, and ZCode.
+
+```bash
+curl "http://127.0.0.1:8787/api/sessions"
+```
+
+The server refreshes this registry every two seconds and writes:
+
+- `runtime/data/session_registry.json`
+- `runtime/data/session_markers/codex_session.txt`
+- `runtime/data/session_markers/opencode_session.txt`
+- `runtime/data/session_markers/zcode_session.txt`
+
+### GET `/api/service`
+
+Returns hidden background service state, including managed child PIDs and
+whether automatic release is disabled.
+
+```bash
+curl "http://127.0.0.1:8787/api/service"
+```
+
+### GET `/api/config`
+
+Returns the current collaboration configuration.
+
+```bash
+curl "http://127.0.0.1:8787/api/config"
+```
+
+### POST `/api/config`
+
+Updates the collaboration configuration. Changing the port or project still
+requires restarting the hidden background service.
+
+### GET `/api/roster`
+
+Returns the active work roster. If `active_agents` is absent from the config,
+all three agents are active by default.
+
+```bash
+curl "http://127.0.0.1:8787/api/roster"
+```
+
+### POST `/api/roster`
+
+Changes the active work roster without restarting the service. An empty list
+means all agents are temporarily excluded and open tasks are paused while
+preserving their progress. When the owner is excluded, the workload watcher
+reassigns the task to the least-loaded active agent and records the handoff.
+
+```bash
+curl -X POST "http://127.0.0.1:8787/api/roster" \
+  -H "Content-Type: application/json" \
+  -d '{"active_agents":["Codex","ZCode","OpenCode"]}'
+```
+
+### GET `/api/workload`
+
+Returns the live workload state, including the effective roster and task
+handoff history.
+
+### GET `/api/commander`
+
+Returns the current commander for the project. The default is `Codex`.
+
+### POST `/api/commander`
+
+Changes the project commander without restarting the service. Valid values are
+`Codex`, `ZCode`, and `OpenCode`.
+
+```bash
+curl -X POST "http://127.0.0.1:8787/api/commander?project=main" \
+  -H "Content-Type: application/json" \
+  -d '{"commander":"ZCode"}'
+```
+
+### POST `/api/shutdown`
+
+Boss-only force-stop request. The background supervisor stops the chatroom and
+all managed bridge watchers.
+
+### POST `/api/sessions/refresh`
+
+Forces an immediate refresh instead of waiting for the next 2-second tick.
+
+```bash
+curl -X POST "http://127.0.0.1:8787/api/sessions/refresh"
+```
+
 ### GET `/api/transcript`
 
 Returns the plain-text transcript for a project (UTF-8).

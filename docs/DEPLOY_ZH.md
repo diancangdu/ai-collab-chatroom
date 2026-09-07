@@ -1,5 +1,7 @@
 # 部署与配置指南（中文）
 
+> 重要提醒：本项目会保持多个 AI/桥接协同，token 消耗可能很高。心疼 token 的兄弟，不建议部署。
+
 ## 1. 环境要求
 
 - Python 3.9 或更高版本，建议 3.10+。
@@ -188,17 +190,17 @@ scripts/dispatch-stop.bat demo
 
 行为说明：
 
-- `start`：确保聊天室在线，为该项目启动一个 monitor 值守进程，按 `config.json` 里的 `zcode_app` / `opencode_app` 拉起外部 AI 应用，并往频道发集合消息。
+- `start`：确保聊天室在线，为该项目启动 monitor 值守进程，按 `config.json` 里的 `codex_app` / `zcode_app` / `opencode_app` 拉起外部 AI 应用，并往频道发集合消息。
 - `stop`：只停当前项目的 monitor，聊天室服务保留，其他项目不受影响。
 - `status`：查看聊天室、monitor、外部应用运行状态。
-- 自动收工：频道静默超过 `idle_minutes`（默认 60 分钟）后，monitor 会自动发通知并执行 stop；任何新发言都会重置计时。
-- 想关闭自动收工：`-NoAutoRelease`。
+- 隐藏后台服务模式没有 60 分钟自动收工；请用控制台或 `scripts/stop-background.cmd` 手动停止。
 
 ## 6. 数据与隐私
 
 - 所有数据保存在 `chatroom/data/`：消息 JSONL、纯文本 transcript、水位文件、调度状态。
 - `config.json` 和 `chatroom/data/` 已被 `.gitignore` 忽略，不会上传到 GitHub。提交前也不要加入本机路径、API key、token 或私人日志。
 - 服务器默认只绑定 `127.0.0.1`，不对外网开放。
+- 发布前必须做隐私审计：检查绝对路径、会话 ID、消息记录、密钥和机器名；不确定的内容不要提交。
 
 ## 7. 资源占用说明
 

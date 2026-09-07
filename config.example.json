@@ -1,9 +1,18 @@
 {
   "host": "127.0.0.1",
   "port": 8787,
+  "communication_root": "",
+  "server_url": "http://127.0.0.1:8787",
+  "auto_connect_on_start": true,
   "python": "python",
+  "codex_app": "",
   "zcode_app": "",
   "opencode_app": "",
+  "active_agents": [
+    "Codex",
+    "ZCode",
+    "OpenCode"
+  ],
   "idle_minutes": 60,
   "commander_rules": [
     {

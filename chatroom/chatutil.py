@@ -4,7 +4,7 @@ import os
 import re
 import json
 
-DEFAULT_PROJECT = "main"
+DEFAULT_PROJECT = "cs2"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
@@ -16,8 +16,18 @@ def normalize_project(project):
 
 
 def project_paths(project):
-    """返回项目的数据文件路径，每个项目独立文件。"""
+    """返回项目的数据文件路径。cs2 沿用旧文件名，历史消息与水位零迁移。"""
     p = normalize_project(project)
+    if p == DEFAULT_PROJECT:
+        return {
+            "project": p,
+            "messages": os.path.join(DATA_DIR, "messages.jsonl"),
+            "transcript": os.path.join(DATA_DIR, "transcript.md"),
+            "transcript_old": os.path.join(DATA_DIR, "transcript.old.md"),
+            "opencode_seen": os.path.join(DATA_DIR, "opencode_seen.txt"),
+            "watchdog_seen": os.path.join(DATA_DIR, "watchdog_seen.txt"),
+            "opencode_flag": os.path.join(DATA_DIR, "opencode_flag.json"),
+        }
     return {
         "project": p,
         "messages": os.path.join(DATA_DIR, "messages.%s.jsonl" % p),
@@ -31,24 +41,13 @@ def project_paths(project):
 
 def known_projects():
     """扫描数据目录，返回全部已知项目名。"""
-    projects = set()
+    projects = {DEFAULT_PROJECT}
     if os.path.isdir(DATA_DIR):
         for name in os.listdir(DATA_DIR):
-            if name.startswith("messages.") and name.endswith(".jsonl"):
+            # 旧版 messages.jsonl 属于默认项目 cs2，不按分项目文件解析
+            if name.startswith("messages.") and name.endswith(".jsonl") and name != "messages.jsonl":
                 projects.add(name[len("messages."):-len(".jsonl")])
-    return sorted(projects) or [DEFAULT_PROJECT]
-
-
-def load_config():
-    """读取项目根目录 config.json（不存在则返回空配置）。"""
-    cfg = {}
-    path = os.path.join(os.path.dirname(BASE_DIR), "config.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            cfg = json.load(f)
-    except Exception:
-        pass
-    return cfg
+    return sorted(projects)
 
 
 def tail_json_lines(path, pos):

@@ -17,13 +17,18 @@
         <span>项目</span>
         <select id="projectSel"></select>
       </label>
+      <label class="commander-picker">
+        <span>总指挥</span>
+        <select id="commanderSel"></select>
+      </label>
+      <button class="panel-btn" id="panelBtn" type="button">控制台</button>
       <div class="conn" id="conn"><span class="dot"></span><span>连接中</span></div>
     </header>
 
     <aside class="members">
-      <div class="member boss"><span class="avatar">大</span><div><b>大哥 Codex</b><small>总指挥</small></div></div>
-      <div class="member second"><span class="avatar">二</span><div><b>二哥 ZCode</b><small>技术参谋</small></div></div>
-      <div class="member third"><span class="avatar">三</span><div><b>三弟 OpenCode</b><small>执行者</small></div></div>
+      <div id="memberCodex" class="member boss"><span class="avatar">大</span><div><b>大哥 Codex</b><small>总指挥</small></div></div>
+      <div id="memberZCode" class="member second"><span class="avatar">二</span><div><b>二哥 ZCode</b><small>技术参谋</small></div></div>
+      <div id="memberOpenCode" class="member third"><span class="avatar">三</span><div><b>三弟 OpenCode</b><small>执行者</small></div></div>
       <div class="member user"><span class="avatar">你</span><div><b>你</b><small>管理员</small></div></div>
       <div class="rule-box">先商量再动手，达成共识才执行。</div>
     </aside>
@@ -38,10 +43,49 @@
           <option value="OpenCode">三弟 OpenCode</option>
         </select>
         <textarea id="text" rows="1" placeholder="写点什么，回车发送，Shift+回车换行"></textarea>
+        <button type="button" id="imageBtn" aria-label="发送图片">图</button>
+        <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
         <button type="submit">发送</button>
       </form>
     </main>
   </div>
+  <dialog id="controlDlg">
+    <div class="panel-head">
+      <h2>协作服务控制台</h2>
+      <button type="button" id="closePanel">关闭</button>
+    </div>
+    <div class="panel-grid">
+      <section>
+        <h3>后台服务</h3>
+        <div id="serviceStatus" class="status-line">读取中…</div>
+        <div id="startupContract" class="status-line">读取中…</div>
+        <label>默认项目<input id="projectInput" type="text"></label>
+        <label>端口<input id="portInput" type="number"></label>
+        <label class="check"><input id="autoStartApps" type="checkbox">自动启动三兄弟应用</label>
+        <label>Codex 路径<input id="codexAppInput" type="text"></label>
+        <label>ZCode 路径<input id="zcodeAppInput" type="text"></label>
+        <label>OpenCode 路径<input id="opencodeAppInput" type="text"></label>
+        <div class="note">自动解除调动：已永久关闭</div>
+        <button id="saveConfig">保存配置</button>
+      </section>
+      <section>
+        <h3>开工名单</h3>
+        <div id="rosterStatus" class="status-line">读取中…</div>
+        <div id="rosterBox" class="roster-box"></div>
+        <pre id="rosterTasksPre" class="roster-tasks">读取中…</pre>
+        <div class="note">默认三兄弟全部纳入。临时退出后，其任务保留并由在列兄弟自动接管。</div>
+      </section>
+      <section>
+        <h3>通信状态</h3>
+        <pre id="sessionsPre">读取中…</pre>
+      </section>
+      <section class="danger">
+        <h3>紧急控制</h3>
+        <p>这是老板专用强制关闭按钮，不依赖 AI 是否还能响应。</p>
+        <button id="shutdownBtn">强制关闭隐藏服务器</button>
+      </section>
+    </div>
+  </dialog>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 """Lightweight workload desk: live status and automatic sibling support."""
 
 import argparse
+import ctypes
+from ctypes import wintypes
 import json
 import os
 import re
@@ -15,6 +17,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chatutil
+import roster
+import commander
+import server_locator
 
 
 POLL_SECONDS = 2.0
@@ -23,9 +28,8 @@ MANUAL_STATUS_SECONDS = 30 * 60
 UNRESPONSIVE_SECONDS = 90.0
 BUSY_TASK_THRESHOLD = 2
 PROCESS_SCAN_SECONDS = 15.0
+CHAT_URL = "http://127.0.0.1:8787/api/send"
 LOG_NAME = "workload.log"
-API_HOST = "127.0.0.1"
-API_PORT = 8787
 
 AGENTS = ("Codex", "ZCode", "OpenCode")
 PROCESS_NAMES = {"codex.exe": "Codex", "zcode.exe": "ZCode", "opencode.exe": "OpenCode"}
@@ -44,12 +48,20 @@ BUSY_RE = re.compile(r"^[!！](?:忙|busy)\b.*$", re.IGNORECASE)
 IDLE_RE = re.compile(r"^[!！](?:空闲|idle)\b.*$", re.IGNORECASE)
 
 
-def base_dir():
+def runtime_dir():
     return Path(__file__).resolve().parent
 
 
 def data_dir():
-    return base_dir() / "data"
+    return runtime_dir() / "data"
+
+
+def active_agents():
+    return set(roster.load_roster())
+
+
+def is_roster_active(name):
+    return name in active_agents()
 
 
 def state_path(project):
@@ -75,12 +87,8 @@ def acquire_instance_lock(project):
         return None
     try:
         handle.seek(0)
-        if os.name == "nt":
-            import msvcrt
-            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        import msvcrt
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
     except OSError:
         handle.close()
         return None
@@ -164,11 +172,9 @@ def log(project, **data):
 
 
 def send_chat(project, text):
-    payload = json.dumps({"name": "Codex", "text": text}, ensure_ascii=False).encode("utf-8")
-    config = chatutil.load_config()
-    host = API_HOST or str(config.get("host") or "127.0.0.1")
-    port = API_PORT or int(config.get("port") or 8787)
-    url = "http://%s:%d/api/send?project=%s" % (host, port, urllib.parse.quote(project))
+    sender = commander.load_commander(project)
+    payload = json.dumps({"name": sender, "text": text}, ensure_ascii=False).encode("utf-8")
+    url = CHAT_URL + "?project=" + urllib.parse.quote(project)
     req = urllib.request.Request(url, data=payload,
                                  headers={"Content-Type": "application/json; charset=utf-8"})
     try:
@@ -200,18 +206,7 @@ def agent_presence(agent, now):
 
 def detect_online_agents():
     if os.name != "nt":
-        try:
-            out = subprocess.run(["ps", "-eo", "comm="], capture_output=True,
-                                 text=True, timeout=5, check=False)
-            names = {Path(line.strip()).name.lower()
-                     for line in out.stdout.splitlines() if line.strip()}
-            return {agent for exe, agent in PROCESS_NAMES.items() if exe in names}
-        except Exception:
-            return set()
-
-    import ctypes
-    from ctypes import wintypes
-
+        return set()
     class ProcessEntry(ctypes.Structure):
         _fields_ = [
             ("dwSize", wintypes.DWORD),
@@ -256,6 +251,7 @@ def presence_for(state, name, agent, now):
 
 
 def refresh_agents(state, now):
+    active = active_agents()
     for name in AGENTS:
         agent = state["agents"][name]
         if agent.get("manual_status") and float(agent.get("manual_until_epoch") or 0) <= now:
@@ -264,6 +260,7 @@ def refresh_agents(state, now):
         agent["status"] = agent_status(state, name, now)
         agent["presence"] = presence_for(state, name, agent, now)
         agent["open_task_count"] = len(open_tasks_for(state, name))
+        agent["roster_active"] = name in active
 
 
 def next_task_id(state):
@@ -285,10 +282,13 @@ def extract_target(text):
 
 
 def pick_owner(state, now, preferred=None):
-    if preferred:
+    active = active_agents()
+    if preferred and preferred in active:
         return preferred
     candidates = []
     for name in AGENTS:
+        if name not in active:
+            continue
         candidates.append((len(open_tasks_for(state, name)), name))
     if not candidates:
         return None
@@ -298,8 +298,9 @@ def pick_owner(state, now, preferred=None):
 
 def pick_supporter(state, now, owner, existing=()):
     ranked = []
+    active = active_agents()
     for name in AGENTS:
-        if name == owner or name in existing:
+        if name == owner or name in existing or name not in active:
             continue
         agent = state["agents"][name]
         if agent_status(state, name, now) != "idle":
@@ -317,11 +318,19 @@ def task_summary(task):
     return "#%s %s" % (task["id"], task.get("title") or "未命名任务")
 
 
+def add_handoff(task, action, from_name, to_name, at):
+    history = task.setdefault("handoff_history", [])
+    item = {"action": action, "from": from_name, "to": to_name, "at": stamp(at)}
+    if not history or history[-1] != item:
+        history.append(item)
+
+
 def create_task(state, project, msg, now):
     raw = TASK_RE.match(str(msg.get("text") or "")).group(1).strip()
     preferred, title = extract_target(raw)
     owner = pick_owner(state, now, preferred)
     if not owner:
+        send_chat(project, "@你 当前没有纳入开工的兄弟，任务已拒绝创建。")
         return
     task_id = next_task_id(state)
     match = re.match(r"T(\d+)$", task_id, re.IGNORECASE)
@@ -368,7 +377,7 @@ def claim_task(state, project, msg, task_id, now):
     task = state["tasks"].get(task_id)
     if not task or task.get("status") not in ("open", "supporting"):
         return
-    if actor:
+    if actor and is_roster_active(actor):
         task["owner"] = actor
         task["status"] = "claimed"
         task["claimed_at"] = stamp(now)
@@ -378,13 +387,82 @@ def claim_task(state, project, msg, task_id, now):
         log(project, task_claimed=True, task=task_id, owner=actor)
 
 
+def reconcile_roster(state, project, now):
+    active = active_agents()
+    state["active_agents"] = [name for name in AGENTS if name in active]
+    changed = False
+    for task in list(state["tasks"].values()):
+        if task.get("status") not in ("open", "claimed", "supporting", "paused"):
+            continue
+        owner = task.get("owner")
+        supporters = list(task.get("supporters") or [])
+        if not active:
+            if task.get("status") != "paused":
+                task["paused_by_roster"] = True
+                task["pre_pause_status"] = "open" if task.get("status") in ("open", "claimed") else "supporting"
+                task["pre_pause_owner"] = owner
+                task["supporters"] = []
+                task["status"] = "paused"
+                add_handoff(task, "paused_all_inactive", owner, "", now)
+                send_chat(project, "所有兄弟均已退出开工，%s 已暂停并保留进度。" % task_summary(task))
+                log(project, roster_pause=True, task=task["id"], owner=owner)
+                changed = True
+            continue
+
+        if task.get("status") == "paused":
+            task["status"] = task.get("pre_pause_status") or "open"
+            if task.get("status") == "supporting" and not task.get("supporters"):
+                task["status"] = "open"
+            task["paused_by_roster"] = False
+            owner = task.get("pre_pause_owner") or owner
+            add_handoff(task, "resumed", "", owner, now)
+            task.pop("pre_pause_status", None)
+            task.pop("pre_pause_owner", None)
+            send_chat(project, "有兄弟重新加入开工，%s 已恢复。" % task_summary(task))
+            log(project, roster_resume=True, task=task["id"], owner=owner)
+            changed = True
+
+        old_owner = owner
+        if owner not in active:
+            replacement = pick_owner(state, now)
+            if replacement and replacement != owner:
+                task["owner"] = replacement
+                task["previous_owner"] = owner
+                task["acknowledged"] = False
+                add_handoff(task, "reassigned", owner, replacement, now)
+                send_chat(project, "@%s 接管 %s；原负责人 @%s 已退出开工。" % (
+                    replacement, task_summary(task), owner))
+                log(project, roster_handoff=True, task=task["id"], from_owner=owner, to_owner=replacement)
+                changed = True
+            elif not replacement:
+                continue
+
+        old_supporters = supporters
+        kept = [name for name in supporters if name in active and name != task.get("owner")]
+        if kept != old_supporters:
+            removed = sorted(set(old_supporters) - set(kept))
+            task["supporters"] = kept
+            task["status"] = "supporting" if kept else "open"
+            if removed:
+                add_handoff(task, "supporter_removed", ",".join(removed), "", now)
+                send_chat(project, "支援名单已更新：%s；任务 %s。" % (
+                    ", ".join("@" + name for name in removed), task_summary(task)))
+                log(project, roster_supporter_removed=True, task=task["id"], removed=removed)
+            changed = True
+        if old_owner != task.get("owner"):
+            changed = True
+    if changed:
+        refresh_agents(state, now)
+    return changed
+
+
 def maybe_support(state, project, now):
     changed = False
     for task in list(state["tasks"].values()):
         if task.get("status") not in ("open", "claimed", "supporting"):
             continue
         owner = task.get("owner")
-        if owner not in AGENTS or (task.get("supporters") or []):
+        if owner not in AGENTS or owner not in active_agents() or (task.get("supporters") or []):
             continue
         refresh_agents(state, now)
         owner_agent = state["agents"][owner]
@@ -451,16 +529,14 @@ def process_message(state, project, msg, now):
         create_task(state, project, msg, now)
 
 
-def watch(project, poll, host=None, port=None):
-    global API_HOST, API_PORT
-    API_HOST = str(host) if host else API_HOST
-    API_PORT = int(port) if port else API_PORT
+def watch(project, poll):
     paths = chatutil.project_paths(project)
     lock = acquire_instance_lock(project)
     if lock is None:
         log(project, watch_skipped="already_running")
         return
     state = load_state(project)
+    reconcile_roster(state, project, time.time())
     messages, pos = chatutil.tail_json_lines(paths["messages"], 0)
     for msg in messages:
         sender = canonical_agent(msg.get("name"))
@@ -480,6 +556,8 @@ def watch(project, poll, host=None, port=None):
             if now - float(state.get("last_process_scan_epoch") or 0) >= PROCESS_SCAN_SECONDS:
                 state["online_agents"] = sorted(detect_online_agents())
                 state["last_process_scan_epoch"] = now
+                changed = True
+            if reconcile_roster(state, project, now):
                 changed = True
             messages, pos = chatutil.tail_json_lines(paths["messages"], pos)
             if messages:
@@ -508,6 +586,7 @@ def show_status(project):
     state["last_epoch"] = now
     state["online_agents"] = sorted(detect_online_agents())
     state["last_process_scan_epoch"] = now
+    reconcile_roster(state, project, now)
     refresh_agents(state, now)
     print(json.dumps(state, ensure_ascii=False, indent=2))
 
@@ -518,14 +597,13 @@ def main():
     parser.add_argument("project_pos", nargs="?")
     parser.add_argument("--project", dest="project_flag")
     parser.add_argument("--poll", type=float, default=POLL_SECONDS)
-    parser.add_argument("--host")
-    parser.add_argument("--port", type=int)
     args = parser.parse_args()
     project = chatutil.normalize_project(args.project_flag or args.project_pos or chatutil.DEFAULT_PROJECT)
+    server_locator.ensure_server()
     if args.action == "status":
         show_status(project)
     else:
-        watch(project, args.poll, args.host, args.port)
+        watch(project, args.poll)
 
 
 if __name__ == "__main__":

@@ -11,9 +11,10 @@ import urllib.parse
 import urllib.request
 
 import chatutil
+import server_locator
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-DISPATCHER = os.path.join(os.path.dirname(BASE), "scripts", "dispatch.ps1")
+DISPATCHER = os.path.join(BASE, "三兄弟调度.ps1")
 POLL = 5.0
 MENTIONS = ("@opencode", "@三弟", "@三哥")
 
@@ -52,9 +53,8 @@ def toast(title, body):
 
 def post(project, text):
     try:
-        port = int(chatutil.load_config().get("port", 8787))
         payload = json.dumps({"name": "Codex", "text": text}, ensure_ascii=False).encode("utf-8")
-        url = "http://127.0.0.1:%d/api/send?project=%s" % (port, urllib.parse.quote(project))
+        url = "http://127.0.0.1:8787/api/send?project=" + urllib.parse.quote(project)
         req = urllib.request.Request(url, data=payload,
                                      headers={"Content-Type": "application/json; charset=utf-8"})
         urllib.request.urlopen(req, timeout=5).read()
@@ -108,7 +108,8 @@ def main():
     args = parser.parse_args()
     paths = chatutil.project_paths(args.project)
     project = paths["project"]
-    idle_seconds = None if args.no_auto_release else max(5.0, args.idle_minutes * 60.0)
+    server_locator.ensure_server()
+    idle_seconds = None
 
     seen = load_int(paths["opencode_seen"])
     wd_seen = load_int(paths["watchdog_seen"])
@@ -132,15 +133,6 @@ def main():
         time.sleep(max(1.0, args.poll))
         msgs, pos = chatutil.tail_json_lines(paths["messages"], pos)
         if not msgs:
-            if idle_seconds is not None and time.monotonic() - last_activity >= idle_seconds:
-                print("(monitor) idle %.1fmin reached, auto release" % args.idle_minutes, flush=True)
-                post(project, "检测到本频道 %s 分钟无活动，自动解除调动。" % ("%g" % args.idle_minutes))
-                subprocess.Popen(
-                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                     "-File", DISPATCHER, "-Action", "stop", "-Project", project],
-                    creationflags=0x08000000,
-                )
-                return
             continue
         seen, wd_seen, last_activity = process_msgs(
             msgs, paths, project, seen, wd_seen, idle_seconds, last_activity)

@@ -1,5 +1,8 @@
 # Deployment and Configuration Guide (English)
 
+> Important warning: this workflow keeps multiple agents/bridges active and can
+> consume many tokens. If you strongly want to save tokens, do not deploy it.
+
 ## 1. Requirements
 
 - Python 3.9 or newer (3.10+ recommended).
@@ -182,17 +185,19 @@ scripts/dispatch-stop.bat demo
 
 Behavior:
 
-- `start`: ensures the chatroom is online, starts one monitor process for the project, launches the external AI apps configured in `zcode_app` / `opencode_app`, and posts a "gather" message.
+- `start`: ensures the chatroom is online, starts a monitor process for the project, launches the external AI apps configured in `codex_app` / `zcode_app` / `opencode_app`, and posts a "gather" message.
 - `stop`: stops only this project's monitor. The shared chatroom stays online and other projects are untouched.
 - `status`: shows chatroom, monitor, and app status.
-- Auto-release: after `idle_minutes` (default 60) of silence, the monitor posts a notice and runs stop. Any new message resets the timer.
-- To disable auto-release: `-NoAutoRelease`.
+- The hidden background-service mode has no 60-minute auto-release. Stop it with
+  the console or `scripts/stop-background.cmd`.
 
 ## 6. Data and Privacy
 
 - All data lives in `chatroom/data/`: message JSONL, plain-text transcript, watermark files, and dispatch state.
 - `config.json` and `chatroom/data/` are ignored by `.gitignore`, so they are not pushed to GitHub. Also keep API keys, tokens, personal endpoints, and absolute local paths out of commits.
 - The server binds to `127.0.0.1` by default and is not exposed to the internet.
+- Perform a privacy audit before release: check absolute paths, session IDs,
+  transcripts, credentials, and machine names. When in doubt, do not commit it.
 
 ## 7. Resource Usage
 
