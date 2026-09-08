@@ -342,6 +342,7 @@ def api_wake(project, mention_text, priority=False):
         prompt = (
             "聊天室有@你的新消息（项目%s）。不要读取大文件，不要展开分析，"
             "按协作铁律用命令行回复：python \"%s\" send --name OpenCode --project %s --text \"...\"。"
+            "如果触发消息要求精确回执，必须把指定标记原样作为 --text 发出，不要总结。"
             "触发消息：%s"
         ) % (project, Path(__file__).resolve().parent / "chatroom.py", project, mention_text)
         body = json.dumps({"parts": [{"type": "text", "text": prompt}]}, ensure_ascii=False).encode("utf-8")
