@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
@@ -29,6 +30,7 @@ NODE_PATH = Path(
     r"C:\Users\64560\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
 )
 CONFIG_DIR = Path.home() / ".qoder-cn"
+QODER_APP_DB = Path.home() / "AppData" / "Roaming" / "com.qodercn.app.stable" / "main.sqlite"
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 PYTHONW = str(Path(sys.executable).with_name("pythonw.exe"))
 if not Path(PYTHONW).exists():
@@ -86,18 +88,67 @@ def config_dir():
     return Path(os.environ["QODER_CONFIG_DIR"]) if os.environ.get("QODER_CONFIG_DIR") else CONFIG_DIR
 
 
-def bridge_session_args():
+def bridge_session_id():
     try:
         value = BRIDGE_SESSION_FILE.read_text(encoding="ascii").strip()
         if value:
             uuid.UUID(value)
-            return ["--resume", value]
+            return value
     except Exception:
         pass
     value = str(uuid.uuid4())
     BRIDGE_SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     BRIDGE_SESSION_FILE.write_text(value, encoding="ascii")
+    return value
+
+
+def bridge_session_args():
+    value = bridge_session_id()
+    if BRIDGE_SESSION_FILE.exists():
+        return ["--resume", value]
     return ["--session-id", value, "--name", "通信桥（四哥）"]
+
+
+def inject_gui_projection(session_id, user_text, assistant_text):
+    if not QODER_APP_DB.exists():
+        return False
+    now_ms = int(time.time() * 1000)
+    timestamp = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+    turn_id = str(uuid.uuid4())
+    assistant_id = "assistant:" + turn_id
+    user_payload = {
+        "id": turn_id, "role": "user", "turnId": turn_id, "issueId": None,
+        "text": user_text[:4000], "timestamp": timestamp, "tools": [], "attachments": [],
+        "selectedSkillNames": [], "selectedPluginIds": [], "selectedConnectorIds": [],
+        "selectedAgentNames": [], "selectedCapabilityCommands": [], "referencedChatSessions": [],
+    }
+    assistant_payload = {
+        "id": assistant_id, "role": "assistant", "turnId": turn_id, "requestSetId": turn_id,
+        "text": assistant_text[:1200], "timestamp": timestamp, "tools": [],
+        "turnStartedAt": timestamp, "durationMs": 0,
+        "turnMetrics": {"durationMs": 0, "turnCount": 1},
+        "parts": [{"id": turn_id + ":text:0", "type": "text", "text": assistant_text[:1200], "parentToolUseId": None}],
+        "finalTextId": turn_id + ":text:0",
+    }
+    connection = sqlite3.connect(str(QODER_APP_DB), timeout=15)
+    try:
+        with connection:
+            sequence = int(connection.execute(
+                "SELECT COALESCE(MAX(sequence), 0) FROM chat_session_messages WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]) + 1
+            connection.execute(
+                "INSERT INTO chat_session_messages(session_id,message_id,turn_id,sequence,payload_json,status,source,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (session_id, turn_id, turn_id, sequence, json.dumps(user_payload, ensure_ascii=False, separators=(",", ":")), "completed", "host-projection", now_ms, now_ms),
+            )
+            connection.execute(
+                "INSERT INTO chat_session_messages(session_id,message_id,turn_id,sequence,payload_json,status,source,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (session_id, assistant_id, turn_id, sequence + 1, json.dumps(assistant_payload, ensure_ascii=False, separators=(",", ":")), "completed", "sdk-projection", now_ms, now_ms),
+            )
+            connection.execute("UPDATE chat_sessions SET updated_at=?, unread=1 WHERE session_id=?", (now_ms, session_id))
+        return True
+    finally:
+        connection.close()
 
 
 def ask_qoder(project, text):
@@ -177,6 +228,10 @@ def main():
                     continue
                 try:
                     reply = ask_qoder(project, text)
+                    try:
+                        inject_gui_projection(bridge_session_id(), text, reply)
+                    except Exception as exc:
+                        log(project, gui_projection_error=str(exc), id=msg.get("id"))
                     send(project, reply)
                     log(project, replied=True, id=msg.get("id"), reply_length=len(reply))
                 except Exception as exc:
