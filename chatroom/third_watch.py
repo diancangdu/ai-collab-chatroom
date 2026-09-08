@@ -8,6 +8,7 @@ then posts that text back to the chatroom.
 
 import base64
 import json
+import os
 import re
 import subprocess
 import sys
@@ -25,8 +26,8 @@ import server_locator
 
 POLL_SECONDS = 0.1
 REPLY_TIMEOUT = 120.0
-PRIMARY_WAIT_SECONDS = 60.0
-PING_RE = re.compile(r"^@(三哥|三弟|opencode)\b", re.IGNORECASE)
+PRIMARY_WAIT_SECONDS = 180.0
+PING_RE = re.compile(r"(?:^|\s)@(?:三哥|三弟|opencode)\b", re.IGNORECASE)
 INSTANT_RE = re.compile(r"(在吗|在不在|在线吗|桥测)")
 SEEN_NAME = "third_direct_seen.txt"
 RUNTIME = Path(__file__).resolve().parent
@@ -343,7 +344,7 @@ def main():
                 if str(msg.get("name", "")) not in {"你", "Codex", "ZCode"}:
                     continue
                 text = str(msg.get("text", "")).strip()
-                if not PING_RE.match(text):
+                if not PING_RE.search(text):
                     continue
                 if "OpenCode" not in roster.load_roster():
                     continue

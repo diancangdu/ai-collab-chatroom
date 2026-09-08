@@ -16,12 +16,16 @@
 - Work-start contract: workers locate the local communication server first and
   wait for it before entering their loops.
 - Live session registry for Codex, ZCode, and OpenCode.
+- Per-project startup communication gate. ZCode and OpenCode must return a
+  gate marker with their real local time before project tasks are dispatched.
 
 ### Changed
 
 - Removed the 60-minute automatic release from the collaboration service.
 - Added APIs for roster, commander, workload, service state, and session
   refresh.
+- Project dispatch now launches both sibling bridge watchers and the workload
+  desk. Mention routing accepts `@ZCode` / `@OpenCode` anywhere in the message.
 
 ### Privacy audit
 

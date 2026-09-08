@@ -24,7 +24,7 @@ import server_locator
 
 POLL_SECONDS = 0.5
 REPLY_TIMEOUT = 20.0
-PING_RE = re.compile(r"^@(二哥|zcode)\b", re.IGNORECASE)
+PING_RE = re.compile(r"(?:^|\s)@(?:二哥|zcode)\b", re.IGNORECASE)
 INSTANT_RE = re.compile(r"(在吗|在不在|在线吗|桥测)")
 
 ZCODE_CONFIG = Path(os.environ.get("ZCODE_CONFIG", Path.home() / ".zcode" / "v2" / "config.json"))
@@ -284,9 +284,10 @@ def cdp_evaluate(expression, timeout=4.0):
     return asyncio.run(run_cdp())
 
 
-def wait_for_ui_reply(user_text, timeout=75.0):
+def wait_for_ui_reply(user_text, timeout=75.0, marker=""):
     """Capture the assistant turn following the injected user turn in the UI."""
-    needle = user_text[:500]
+    marker_match = re.search(r"\b\d{14}\b", user_text or "")
+    needle = marker or (marker_match.group(0) if marker_match else user_text[:500])
     expression = r"""
     (() => {
       const needle = %s;
@@ -366,7 +367,7 @@ def main():
                 if str(msg.get("name", "")) not in {"你", "Codex", "OpenCode"}:
                     continue
                 text = str(msg.get("text", "")).strip()
-                if not PING_RE.match(text):
+                if not PING_RE.search(text):
                     continue
                 if "ZCode" not in roster.load_roster():
                     continue
@@ -374,7 +375,7 @@ def main():
                     try:
                         inject_via_ui(text)
                         log(project, injected_ui=True, id=msg.get("id"))
-                        reply = wait_for_ui_reply(text, timeout=45)
+                        reply = wait_for_ui_reply(text, timeout=120)
                         if reply:
                             send(project, reply)
                             log(project, ui_replied=True, id=msg.get("id"), reply_length=len(reply))

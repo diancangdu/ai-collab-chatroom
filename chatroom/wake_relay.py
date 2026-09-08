@@ -31,9 +31,9 @@ RESPONSE_TIMEOUT = 120
 WATCHER_FALLBACK_TIMEOUT = 180
 WATCHER_GRACE_TIMEOUT = 90
 FIRE_COOLDOWN = 180
-API_COOLDOWN = 30
+API_COOLDOWN = 90
 AUTOACK_COOLDOWN = 45
-DIGEST_INTERVAL = 240
+DIGEST_INTERVAL = 900
 ROUTE_PREF_UNTIL = time.mktime(time.strptime("2026-09-07 00:00:00", "%Y-%m-%d %H:%M:%S"))
 ACTIVITY_WINDOW = 20
 OPENCODE_EXE = os.environ.get("OPENCODE_EXE", "")
@@ -41,9 +41,9 @@ WATCHER_MARKS = ("watchdog.py", "opencodewatch.py")
 ENTER_ATTEMPTS = 8
 ENTER_RETRY_SECONDS = 1.2
 NO_WINDOW = 0x08000000
-PING_RE = re.compile(r"^@(三弟|三哥|opencode)\b", re.IGNORECASE)
+PING_RE = re.compile(r"(?:^|\s)@(?:三弟|三哥|opencode)\b", re.IGNORECASE)
 BOSS_PING_RE = re.compile(r"(?:^|\s)@?(?:大哥|codex)", re.IGNORECASE)
-ZCODE_ROUTE_RE = re.compile(r"^@(二哥|zcode)\b", re.IGNORECASE)
+ZCODE_ROUTE_RE = re.compile(r"(?:^|\s)@(?:二哥|zcode)\b", re.IGNORECASE)
 ZCODE_WORKSPACE = os.environ.get("ZCODE_WORKSPACE") or os.getcwd()
 ZCODE_SESSION_ID = os.environ.get("ZCODE_SESSION_ID") or "sess_9d5c7fb3-0e6c-4550-8842-55f329c736b9"
 ZCODE_SESSION_LOOKBACK_SECONDS = 24 * 60 * 60
@@ -65,7 +65,7 @@ def mentions_opencode(text):
     """Only direct address at the start of a message counts. Mentions buried
     mid-text (meta discussion about @三哥) must not trigger wake pop-ups."""
     t = (text or "").strip().lower()
-    if PING_RE.match(t):
+    if PING_RE.search(t):
         return True
     if t.startswith("@二哥") and ("集合开工" in t or "集合令" in t):
         return True
@@ -75,7 +75,7 @@ def mentions_opencode(text):
 def mentions_zcode(text):
     """@二哥 direct address, or a boss broadcast addressed to him."""
     t = (text or "").strip().lower()
-    if ZCODE_ROUTE_RE.match(t):
+    if ZCODE_ROUTE_RE.search(t):
         return True
     if t.startswith("@二哥") and ("集合开工" in t or "集合令" in t):
         return True
@@ -531,8 +531,7 @@ def main():
                     last_zcode = now
                 else:
                     log(project, "zcode mention id %d skipped, cooldown 60s" % msg_id)
-                continue
-            if mentions_opencode(text):
+            if not mentions_zcode(text) or mentions_opencode(text):
                 now = time.time()
                 active = last_opencode_ts is not None and now - last_opencode_ts < ACTIVITY_WINDOW
                 if active:

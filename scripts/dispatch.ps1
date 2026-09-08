@@ -38,6 +38,10 @@ if ([string]::IsNullOrWhiteSpace($Project)) { $Project = "main" }
 $ChatServerPy = Join-Path $Chat "chatroom.py"
 $MonitorPy = Join-Path $Chat "monitor.py"
 $WakeRelayPy = Join-Path $Chat "wake_relay.py"
+$ThirdWatchPy = Join-Path $Chat "third_watch.py"
+$ZCodeWatchPy = Join-Path $Chat "zcode_watch.py"
+$WorkloadPy = Join-Path $Chat "workload.py"
+$CommTestPy = Join-Path $Chat "comm_test.py"
 $OpenCodeLoopPy = Join-Path $Chat "opencode_loop.py"
 $WatchdogPy = Join-Path $Chat "watchdog.py"
 $DispatchIdlePy = Join-Path $Chat "dispatch_idle.py"
@@ -140,6 +144,10 @@ switch ($Action) {
         if ($NoAutoRelease) { $monitorArgs += "--no-auto-release" }
         $state.services += Start-OwnedProc "monitor" $MonitorPy $monitorArgs
         $state.services += Start-OwnedProc "wake-relay" $WakeRelayPy @("--project", $Project)
+        $state.services += Start-OwnedProc "third-watch" $ThirdWatchPy @("--project", $Project)
+        $state.services += Start-OwnedProc "zcode-watch" $ZCodeWatchPy @("--project", $Project)
+        $state.services += Start-OwnedProc "workload" $WorkloadPy @("watch", "--project", $Project)
+        Save-State $state
 
         if ($ZCodeExe -and (Test-Path $ZCodeExe)) {
             $zname = [IO.Path]::GetFileNameWithoutExtension($ZCodeExe)
@@ -162,10 +170,22 @@ switch ($Action) {
         } else {
             $state.apps += "opencode:not-configured"
         }
+        Start-Sleep -Seconds 3
+        Save-State $state
+
+        Write-Host "== Communication gate: project=$Project =="
+        & $Py $CommTestPy --project $Project --timeout 180
+        if ($LASTEXITCODE -ne 0) {
+            $state.comm_test = "failed"
+            Save-State $state
+            Write-Warning "Communication gate failed; project dispatch is paused."
+            exit 1
+        }
+        $state.comm_test = "passed"
 
         Save-State $state
         Send-Chat "@二哥 @三哥 大哥调度：项目 $Project 集合开工，请按 AGENTS.md / docs/COLLABORATION.md 流程报备后领活；任务完成我会发收工令并解除该项目值守；默认静默 $IdleMinutes 分钟自动收工，有任务发言即可重置计时"
-        Send-Chat "聊天室 http://$HostAddr`:$Port/?project=$Project"
+Send-Chat "聊天室 http://$HostAddr`:$Port/?project=$Project"
         $state | Format-List
     }
     "stop" {
@@ -207,9 +227,16 @@ switch ($Action) {
             Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
             Write-Host ("Stopped orphan wake-relay PID " + $p.ProcessId)
         }
+        foreach ($script in @($ThirdWatchPy, $ZCodeWatchPy, $WorkloadPy)) {
+            $orphans = Find-ProjectProc $script $Project | Where-Object { $knownPids -notcontains [int]$_.ProcessId }
+            foreach ($p in $orphans) {
+                Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+                Write-Host ("Stopped orphan " + (Split-Path $script -Leaf) + " PID " + $p.ProcessId)
+            }
+        }
         Stop-LegacyWatchers $Project
         Save-State @{ action = "stop"; project = $Project; ts = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); services = @(); apps = @() }
-        Send-Chat "@二哥 @三哥 项目 $Project 本场协同结束，收工解散"
+        Send-Chat "项目 $Project 本场协同结束，收工解散"
     }
     "status" {
         Write-Host "== Dispatch: STATUS project=$Project =="
