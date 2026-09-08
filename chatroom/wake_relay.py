@@ -35,7 +35,8 @@ FIRE_COOLDOWN = 180
 API_COOLDOWN = 90
 AUTOACK_COOLDOWN = 45
 DIGEST_INTERVAL = 0
-OPENCODE_MIN_INTERVAL_SECONDS = 300
+OPENCODE_MIN_INTERVAL_SECONDS = 120
+OPENCODE_PING_INTERVAL_SECONDS = 10
 ROUTE_PREF_UNTIL = time.mktime(time.strptime("2026-09-07 00:00:00", "%Y-%m-%d %H:%M:%S"))
 ACTIVITY_WINDOW = 20
 OPENCODE_EXE = os.environ.get("OPENCODE_EXE", "")
@@ -129,10 +130,13 @@ def zcode_model_provider():
                 candidates.append((provider.startswith("builtin:"), provider, model_id))
         if candidates:
             official, provider, model_id = min(candidates, key=lambda item: (item[0],))
-            return provider, model_id
+        return provider, model_id
     except Exception:
-        pass
         return None, None
+
+
+def is_light_ping(text):
+    return bool(re.search(r"通信测试|直连互测|桥测|在吗|在不在|在线吗|ACK\s+\d{14}", text or "", re.I))
 
 
 def boss_inbox_path(project):
@@ -312,14 +316,13 @@ def opencode_pids():
         return set()
 
 
-def api_wake(project, mention_text):
+def api_wake(project, mention_text, priority=False):
     """Primary wake: POST the task straight into OpenCode's live session via
     its local sidecar API. Credentials are read from the app's process memory
     on every call (server_key.py stdout) and never touch disk."""
-    if not rate_limit.try_acquire(
-        provider="opencode",
-        min_interval_seconds=OPENCODE_MIN_INTERVAL_SECONDS,
-    ):
+    provider_key = "opencode-ping" if priority else "opencode"
+    interval = OPENCODE_PING_INTERVAL_SECONDS if priority else OPENCODE_MIN_INTERVAL_SECONDS
+    if not rate_limit.try_acquire(provider=provider_key, min_interval_seconds=interval):
         log(project, "api wake skipped: OpenCode rate limiter busy")
         return False
     try:
@@ -543,13 +546,14 @@ def main():
                 now = time.time()
                 active = last_opencode_ts is not None and now - last_opencode_ts < ACTIVITY_WINDOW
                 if active:
-                    pending = {"id": msg_id, "until": now + args.timeout, "text": text[:200]}
+                    priority = is_light_ping(text)
+                    pending = {"id": msg_id, "until": now + args.timeout, "text": text[:200], "priority": priority}
                     log(project, "pending armed by id %d (%s), OpenCode active" % (msg_id, name))
                 else:
                     # API injection is non-intrusive: fire it immediately so
                     # OpenCode starts working within seconds, not minutes.
                     if now - last_api >= args.api_cooldown:
-                        if api_wake(project, text[:200]):
+                        if api_wake(project, text[:200], priority=is_light_ping(text)):
                             # Safety net: if OpenCode still never replies,
                             # escalate to the popup after a long grace. The
                             # clock restarts AFTER the injection returns: the
@@ -573,11 +577,11 @@ def main():
                     log(project, "zcode claim detected, pending cleared")
                 else:
                     # No ZCode claim within the window: fall back to OpenCode.
-                    if api_wake(project, pending["text"]):
+                    if api_wake(project, pending["text"], priority=pending.get("priority", False)):
                         last_api = time.time()
                     pending = {"id": pending["id"], "until": time.time() + args.grace_timeout, "text": pending["text"], "popup": True}
             if pending.get("api"):
-                if now - last_api >= args.api_cooldown and api_wake(project, pending["text"]):
+                if now - last_api >= args.api_cooldown and api_wake(project, pending["text"], priority=pending.get("priority", False)):
                     last_api = now
                     pending = None
             elif now - last_fire >= args.cooldown:

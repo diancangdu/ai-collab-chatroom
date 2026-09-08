@@ -78,14 +78,14 @@ def resolve_session():
     finally:
         con.close()
 
-def inject_session_input(user_text):
+def inject_session_input(user_text, project):
     prompt = (
-        "聊天室实时桥呼叫，原文：" + user_text[:500] + "\n"
+        f"聊天室实时桥呼叫（项目 {project}），原文：" + user_text[:500] + "\n"
         "请立即做两件事：\n"
         "1. 在本会话回复一句简短中文。\n"
         "2. 用命令把同一句回复发到聊天室："
         "python chatroom/chatroom.py send "
-        "--name ZCode --project cs2 --text \"你的回复\"\n"
+        f"--name ZCode --project {project} --text \"你的回复\"\n"
         "不要展开分析，不要使用其他工具，只回一句然后执行发送命令。"
     )
     now_ms = int(time.time() * 1000)
@@ -382,7 +382,7 @@ def main():
                         else:
                             log(project, ui_reply_timeout=True, id=msg.get("id"))
                     except Exception as ui_exc:
-                        session_id = inject_session_input(text)
+                        session_id = inject_session_input(text, project)
                         log(project, injected_session=True, id=msg.get("id"), session_id=session_id, ui_error=str(ui_exc))
                 except Exception as exc:
                     log(project, session_error=str(exc), id=msg.get("id"))

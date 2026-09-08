@@ -7,6 +7,7 @@ import json
 DEFAULT_PROJECT = "cs2"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
+CHANNELS_DIR = os.path.join(DATA_DIR, "channels")
 
 
 def normalize_project(project):
@@ -18,35 +19,27 @@ def normalize_project(project):
 def project_paths(project):
     """返回项目的数据文件路径。cs2 沿用旧文件名，历史消息与水位零迁移。"""
     p = normalize_project(project)
-    if p == DEFAULT_PROJECT:
-        return {
-            "project": p,
-            "messages": os.path.join(DATA_DIR, "messages.jsonl"),
-            "transcript": os.path.join(DATA_DIR, "transcript.md"),
-            "transcript_old": os.path.join(DATA_DIR, "transcript.old.md"),
-            "opencode_seen": os.path.join(DATA_DIR, "opencode_seen.txt"),
-            "watchdog_seen": os.path.join(DATA_DIR, "watchdog_seen.txt"),
-            "opencode_flag": os.path.join(DATA_DIR, "opencode_flag.json"),
-        }
+    channel_dir = os.path.join(CHANNELS_DIR, p)
+    os.makedirs(channel_dir, exist_ok=True)
     return {
         "project": p,
-        "messages": os.path.join(DATA_DIR, "messages.%s.jsonl" % p),
-        "transcript": os.path.join(DATA_DIR, "transcript.%s.md" % p),
-        "transcript_old": os.path.join(DATA_DIR, "transcript.%s.old.md" % p),
-        "opencode_seen": os.path.join(DATA_DIR, "opencode_seen.%s.txt" % p),
-        "watchdog_seen": os.path.join(DATA_DIR, "watchdog_seen.%s.txt" % p),
-        "opencode_flag": os.path.join(DATA_DIR, "opencode_flag.%s.json" % p),
+        "channel_dir": channel_dir,
+        "messages": os.path.join(channel_dir, "messages.jsonl"),
+        "transcript": os.path.join(channel_dir, "transcript.md"),
+        "transcript_old": os.path.join(channel_dir, "transcript.old.md"),
+        "opencode_seen": os.path.join(channel_dir, "opencode_seen.txt"),
+        "watchdog_seen": os.path.join(channel_dir, "watchdog_seen.txt"),
+        "opencode_flag": os.path.join(channel_dir, "opencode_flag.json"),
     }
 
 
 def known_projects():
     """扫描数据目录，返回全部已知项目名。"""
     projects = {DEFAULT_PROJECT}
-    if os.path.isdir(DATA_DIR):
-        for name in os.listdir(DATA_DIR):
-            # 旧版 messages.jsonl 属于默认项目 cs2，不按分项目文件解析
-            if name.startswith("messages.") and name.endswith(".jsonl") and name != "messages.jsonl":
-                projects.add(name[len("messages."):-len(".jsonl")])
+    if os.path.isdir(CHANNELS_DIR):
+        for name in os.listdir(CHANNELS_DIR):
+            if os.path.isdir(os.path.join(CHANNELS_DIR, name)):
+                projects.add(name)
     return sorted(projects)
 
 

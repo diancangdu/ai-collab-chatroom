@@ -27,7 +27,7 @@ import server_locator
 
 POLL_SECONDS = 0.1
 REPLY_TIMEOUT = 120.0
-PRIMARY_WAIT_SECONDS = 180.0
+PRIMARY_WAIT_SECONDS = 90.0
 OPENCODE_MIN_INTERVAL_SECONDS = 300
 PING_RE = re.compile(r"(?:^|\s)@(?:三哥|三弟|opencode)\b", re.IGNORECASE)
 INSTANT_RE = re.compile(r"(在吗|在不在|在线吗|桥测)")
