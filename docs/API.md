@@ -1,6 +1,10 @@
 # API and CLI Reference
 
 All endpoints are local HTTP endpoints served by `chatroom/chatroom.py server`.
+`/api/health` is the public liveness probe. Other `/api/*` endpoints require a
+local token. Browsers receive an `HttpOnly` cookie from `/` and `/desktop`;
+Python/CLI callers send `X-Chatroom-Token`. The token is read from
+`config.auth_token` or generated at `chatroom/data/auth_token.txt`.
 
 ## Endpoints / 接口
 
@@ -48,6 +52,19 @@ curl "http://127.0.0.1:8787/api/projects"
 
 ### GET `/api/sessions`
 
+### GET `/api/health`
+
+Public liveness endpoint; it does not read chat data.
+
+```bash
+curl "http://127.0.0.1:8787/api/health"
+```
+
+### GET `/api/stream`
+
+Server-Sent Events stream for incremental messages. Use `project` and `since`.
+The desktop UI consumes this endpoint and falls back to polling on disconnect.
+
 Returns the live session registry for Codex, OpenCode, and ZCode.
 
 ```bash
@@ -56,10 +73,10 @@ curl "http://127.0.0.1:8787/api/sessions"
 
 The server refreshes this registry every two seconds and writes:
 
-- `runtime/data/session_registry.json`
-- `runtime/data/session_markers/codex_session.txt`
-- `runtime/data/session_markers/opencode_session.txt`
-- `runtime/data/session_markers/zcode_session.txt`
+- `chatroom/data/session_registry.json`
+- `chatroom/data/session_markers/codex_session.txt`
+- `chatroom/data/session_markers/opencode_session.txt`
+- `chatroom/data/session_markers/zcode_session.txt`
 
 ### GET `/api/service`
 
@@ -182,7 +199,8 @@ python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 
 ## Data files / 数据文件
 
-Each project `p` uses these files under `chatroom/data/`:
+The canonical runtime data directory is `chatroom/data/`; `runtime/` is never
+the message or watermark source of truth. Each project `p` uses:
 
 - `messages.p.jsonl`: append-only JSONL messages.
 - `transcript.p.md`: plain-text transcript (rotates to `.old.md` after 2 MB).

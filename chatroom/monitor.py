@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 
 import chatutil
+import auth
 import server_locator
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -56,7 +57,7 @@ def post(project, text):
         payload = json.dumps({"name": "Codex", "text": text}, ensure_ascii=False).encode("utf-8")
         url = "http://127.0.0.1:8787/api/send?project=" + urllib.parse.quote(project)
         req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json; charset=utf-8"})
+        headers={"Content-Type": "application/json; charset=utf-8", **auth.headers()})
         urllib.request.urlopen(req, timeout=5).read()
     except Exception:
         pass

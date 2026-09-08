@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chatutil
+import auth
 import roster
 import commander
 import server_locator
@@ -176,7 +177,7 @@ def send_chat(project, text):
     payload = json.dumps({"name": sender, "text": text}, ensure_ascii=False).encode("utf-8")
     url = CHAT_URL + "?project=" + urllib.parse.quote(project)
     req = urllib.request.Request(url, data=payload,
-                                 headers={"Content-Type": "application/json; charset=utf-8"})
+                                 headers={"Content-Type": "application/json; charset=utf-8", **auth.headers()})
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             resp.read()

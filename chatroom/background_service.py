@@ -58,7 +58,7 @@ def pid_alive(pid):
 def server_alive(port):
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open("http://127.0.0.1:%s/api/projects" % port, timeout=1) as response:
+        with opener.open("http://127.0.0.1:%s/api/health" % port, timeout=1) as response:
             return response.status == 200
     except Exception:
         return False

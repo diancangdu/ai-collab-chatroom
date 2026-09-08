@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f14">
+  <title>三模型协作 · 软件版</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/desktop.css">
+</head>
+<body>
+  <div class="desktop" id="desktop">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">三模型协作</div>
+        <div class="brand-sub"><span class="pill">软件版</span><span id="version">v1</span></div>
+      </div>
+
+      <label class="field">
+        <span>项目频道</span>
+        <select id="projectSel"></select>
+      </label>
+
+      <section class="panel">
+        <h2>三端状态</h2>
+        <div id="agentCards" class="agents"></div>
+      </section>
+
+      <section class="panel">
+        <h2>任务</h2>
+        <div id="taskSummary" class="summary">读取中…</div>
+        <div id="taskList" class="tasks"></div>
+        <div id="queueSummary" class="summary">离线队列 0</div>
+      </section>
+
+      <section class="panel">
+        <h2>服务</h2>
+        <div id="serviceSummary" class="summary">读取中…</div>
+        <div class="actions">
+          <a href="/" target="_blank" rel="noreferrer">网页版</a>
+          <a href="/api/transcript?project=allagentstudy" target="_blank" rel="noreferrer">转写</a>
+        </div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <div>
+          <h1 id="projectTitle">AllAgentStudy</h1>
+          <p id="projectMeta">本地加密外 · 127.0.0.1</p>
+        </div>
+        <div class="header-status">
+          <span id="commander" class="badge">指挥：读取中</span>
+          <span id="conn" class="conn"><i class="dot"></i>连接中</span>
+          <button id="refreshBtn" type="button">刷新</button>
+        </div>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite"></section>
+
+      <form id="sendForm" class="composer" autocomplete="off">
+        <select id="who" aria-label="发言身份">
+          <option value="你">你</option>
+          <option value="Codex">Codex</option>
+          <option value="ZCode">ZCode</option>
+          <option value="OpenCode">OpenCode</option>
+        </select>
+        <textarea id="text" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+        <button type="button" id="imageBtn">图片</button>
+        <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        <button type="submit" id="sendBtn">发送</button>
+      </form>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/desktop.js"></script>
+</body>
+</html>

@@ -349,6 +349,9 @@ def main():
     paths = chatutil.project_paths(project)
 
     watermark = load_seen()
+    message_file_size = Path(paths["messages"]).stat().st_size
+    if watermark > message_file_size:
+        watermark = 0
     messages, watermark = chatutil.tail_json_lines(paths["messages"], watermark)
     if messages:
         watermark = chatutil.tail_json_lines(paths["messages"], 0)[1]
@@ -371,6 +374,12 @@ def main():
                     try:
                         inject_via_ui(text)
                         log(project, injected_ui=True, id=msg.get("id"))
+                        reply = wait_for_ui_reply(text, timeout=45)
+                        if reply:
+                            send(project, reply)
+                            log(project, ui_replied=True, id=msg.get("id"), reply_length=len(reply))
+                        else:
+                            log(project, ui_reply_timeout=True, id=msg.get("id"))
                     except Exception as ui_exc:
                         session_id = inject_session_input(text)
                         log(project, injected_session=True, id=msg.get("id"), session_id=session_id, ui_error=str(ui_exc))

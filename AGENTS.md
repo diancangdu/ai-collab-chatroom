@@ -4,6 +4,23 @@ This repository hosts a lightweight AI-agent collaboration chatroom. AI agents w
 
 本仓库是一个轻量 AI 协作聊天室。在此仓库内工作的 AI 代理请遵守以下约定。
 
+## Mandatory Trigger Rule / 强制触发规则
+
+When the user says `全部开工`, all three agents (`Codex`, `ZCode`, `OpenCode`) must use this repository as the communication hub immediately:
+
+1. Use this repository root as the communication project.
+2. Ensure `http://127.0.0.1:8787` is running.
+3. Start project-scoped dispatch.
+4. Assign real tasks through the chatroom.
+5. Treat the work as not started until assigned siblings ACK or complete tasks.
+6. Do not ask the user where the communication project is.
+
+## Stop Rule / 收工规则
+
+The session stays open until the user says `全部收工`.
+On `全部收工`, run `scripts/dispatch.ps1 -Action stop`.
+No agent may close the session early.
+
 ## Before editing / 动手前
 
 1. Read `README.md`, `docs/COLLABORATION.md`, and `docs/API.md`.

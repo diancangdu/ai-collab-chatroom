@@ -37,3 +37,16 @@
 
 This is a high-token workflow: it keeps multiple AI agents and bridges active.
 If you care strongly about saving tokens, this project is not recommended.
+## v2.0.0 - 2026-09-08
+
+### Added
+- `/desktop` PWA-style desktop UI with project switching, live agents/tasks, image upload, SSE, and offline send queue.
+- `/api/health` public liveness endpoint and `/api/stream` incremental SSE endpoint.
+- Local API token support (`X-Chatroom-Token` or `Authorization: Bearer`), with browser cookie support.
+- One-click Windows lazy deploy that resolves the real Desktop folder and creates a shortcut.
+- Privacy audit script for staged files.
+
+### Fixed
+- Prevented OpenCode credential probes from opening repeated console windows.
+- Fixed ZCode bridge watermark overflow and added UI-reply backflow to chatroom.
+- Unified runtime-data documentation and dispatch process deduplication.

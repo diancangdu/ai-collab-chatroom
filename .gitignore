@@ -6,3 +6,12 @@ chatroom/data/*
 .venv/
 .DS_Store
 runtime/
+/data/
+/model_registry.py
+/start_all.cmd
+/stop_all.cmd
+/stop_all.ps1
+/TRIGGER.md
+/WORK_START_PROTOCOL.md
+/开工.cmd
+/强制关闭.cmd

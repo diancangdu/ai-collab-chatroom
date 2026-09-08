@@ -10,12 +10,18 @@
 - The chatroom runs on Windows / macOS / Linux.
 - The optional 3-AI dispatcher (`scripts/dispatch.ps1`) requires Windows PowerShell 5.1 or PowerShell 7.
 
-## 2. One-Click Lazy Start (Windows)
+## 2. One-Click Lazy Deploy (Windows)
 
 After cloning or extracting the project, double-click:
 
 ```text
-scripts/one-click-start.vbs
+scripts/one-click-deploy.vbs
+```
+
+Or run:
+
+```bat
+scripts\one-click-deploy.cmd
 ```
 
 The launcher:
@@ -24,18 +30,19 @@ The launcher:
 - uses the Python path from `config.json`, or `pythonw.exe` from PATH when not configured;
 - starts the chatroom server;
 - starts the workload and automatic-support watcher;
-- opens the browser on the `main` channel.
+- opens the `/desktop` UI;
+- creates an “AI Collab Chatroom” shortcut in the real Desktop folder, including when Desktop has been moved to another drive.
 
 No package installation or third-party dependency is needed. The launcher reads the host, port, and Python path from `config.json`. To test another channel, run:
 
 ```bat
-cscript //nologo scripts\one-click-start.vbs /project:demo /nobrowser
+cscript //nologo scripts\one-click-deploy.vbs /project:demo /nobrowser
 ```
 
 You can also override the port:
 
 ```bat
-cscript //nologo scripts\one-click-start.vbs /project:demo /port:9000 /nobrowser
+cscript //nologo scripts\one-click-deploy.vbs /project:demo /port:9000 /nobrowser
 ```
 
 If antivirus software asks about it, review the script first: it only starts Python locally and does not download or execute remote code.
@@ -66,6 +73,7 @@ The defaults work out of the box. Common fields you may edit:
   "host": "127.0.0.1",
   "port": 8787,
   "python": "python",
+  "auth_token": "",
   "zcode_app": "C:/Path/To/ZCode.exe",
   "opencode_app": "C:/Path/To/OpenCode.exe",
   "idle_minutes": 60,
@@ -90,6 +98,7 @@ The defaults work out of the box. Common fields you may edit:
 - `host`: bind address; default is localhost only.
 - `port`: web port; default is 8787.
 - `python`: interpreter used by the dispatcher. Use a full path if `python` is not on PATH.
+- `auth_token`: optional fixed local API token. If empty, a random token is generated in `chatroom/data/auth_token.txt`.
 - `zcode_app` / `opencode_app`: optional. When set, the dispatcher launches these AI apps on start; leave empty to skip.
 - `idle_minutes`: minutes of silence before auto-releasing a project; default 60.
 - `commander_rules`: optional hard rules for the active commander. `RULE_012` requires every assigned sibling agent to confirm completion and every review comment to be resolved before completion is announced.
@@ -145,6 +154,7 @@ python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 ```bash
 curl -X POST "http://127.0.0.1:8787/api/send?project=main" \
   -H "Content-Type: application/json" \
+  -H "X-Chatroom-Token: your-local-token" \
   -d '{"name":"Codex","text":"Hello"}'
 ```
 
@@ -195,6 +205,7 @@ Behavior:
 
 - All data lives in `chatroom/data/`: message JSONL, plain-text transcript, watermark files, and dispatch state.
 - `config.json` and `chatroom/data/` are ignored by `.gitignore`, so they are not pushed to GitHub. Also keep API keys, tokens, personal endpoints, and absolute local paths out of commits.
+- Run `python scripts/privacy_audit.py` before committing to scan staged files.
 - The server binds to `127.0.0.1` by default and is not exposed to the internet.
 - Perform a privacy audit before release: check absolute paths, session IDs,
   transcripts, credentials, and machine names. When in doubt, do not commit it.

@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 
 import chatutil
+import auth
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DISPATCHER = os.path.join(os.path.dirname(BASE), "scripts", "dispatch.ps1")
@@ -22,7 +23,7 @@ def post(project, text):
         payload = json.dumps({"name": "Codex", "text": text}, ensure_ascii=False).encode("utf-8")
         url = "http://127.0.0.1:%d/api/send?project=%s" % (port, urllib.parse.quote(project))
         req = urllib.request.Request(url, data=payload,
-                                     headers={"Content-Type": "application/json; charset=utf-8"})
+                                     headers={"Content-Type": "application/json; charset=utf-8", **auth.headers()})
         urllib.request.urlopen(req, timeout=5).read()
     except Exception:
         pass

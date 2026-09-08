@@ -26,7 +26,7 @@ def load_config():
 
 
 def server_url(port=None):
-    return "http://127.0.0.1:%s/api/projects" % (port or load_config().get("port") or DEFAULT_PORT)
+    return "http://127.0.0.1:%s/api/health" % (port or load_config().get("port") or DEFAULT_PORT)
 
 
 def server_alive(port=None):

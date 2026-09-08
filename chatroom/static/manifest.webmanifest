@@ -1,0 +1,19 @@
+{
+  "name": "三模型协作聊天室",
+  "short_name": "协作聊天室",
+  "description": "Codex / ZCode / OpenCode 本地协作通信软件版界面。",
+  "start_url": "/desktop",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

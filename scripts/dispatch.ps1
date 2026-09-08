@@ -71,9 +71,11 @@ function Find-ProjectProc {
 function Send-Chat {
     param([string]$Text)
     try {
+        $TokenFile = Join-Path $DataDir "auth_token.txt"
+        $Token = if ($Config.auth_token) { [string]$Config.auth_token } elseif (Test-Path $TokenFile) { (Get-Content $TokenFile -Raw).Trim() } else { "" }
         $payload = @{ name = "Codex"; text = $Text } | ConvertTo-Json -Compress
         $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
-        Invoke-WebRequest -Uri $ApiUrl -Method Post -ContentType "application/json; charset=utf-8" -Body $bytes -UseBasicParsing -TimeoutSec 5 | Out-Null
+        Invoke-WebRequest -Uri $ApiUrl -Method Post -ContentType "application/json; charset=utf-8" -Headers @{ "X-Chatroom-Token" = $Token } -Body $bytes -UseBasicParsing -TimeoutSec 5 | Out-Null
     } catch {
         Write-Host ("Chat notify failed: " + $_.Exception.Message)
     }
@@ -93,6 +95,10 @@ function Start-OwnedProc {
     param([string]$Name, [string]$Script, [string[]]$ExtraArgs)
     $existing = Find-ProjectProc $Script $Project
     if ($existing) {
+        $existing = @($existing) | Sort-Object CreationDate -Descending
+        foreach ($p in ($existing | Select-Object -Skip 1)) {
+            Stop-Process -Id ([int]$p.ProcessId) -Force -ErrorAction SilentlyContinue
+        }
         return @{ name = $Name; script = $Script; pid = [int]$existing[0].ProcessId; source = "existing" }
     }
     $procArgs = @($Script) + $ExtraArgs

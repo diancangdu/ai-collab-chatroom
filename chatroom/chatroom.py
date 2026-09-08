@@ -7,11 +7,13 @@ import threading
 import time
 import mimetypes
 import uuid
+import hmac
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 import chatutil
+import auth
 import session_registry
 import roster
 import commander
@@ -298,7 +300,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _static(self, path):
-        name = "index.html" if path in ("/", "/index.html") else path.lstrip("/")
+        name = "index.html" if path in ("/", "/index.html") else "desktop.html" if path == "/desktop" else path.lstrip("/")
         full = os.path.normpath(os.path.join(STATIC_DIR, name))
         if not full.startswith(os.path.abspath(STATIC_DIR) + os.sep) and full != os.path.abspath(STATIC_DIR):
             self.send_error(403)
@@ -310,6 +312,10 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "text/css; charset=utf-8"
         elif full.endswith(".js"):
             ctype = "application/javascript; charset=utf-8"
+        elif full.endswith(".webmanifest"):
+            ctype = "application/manifest+json; charset=utf-8"
+        elif full.endswith(".svg"):
+            ctype = "image/svg+xml"
         else:
             ctype = "text/html; charset=utf-8"
         with open(full, "rb") as f:
@@ -317,15 +323,38 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Type", ctype)
+        self.send_header(
+            "Set-Cookie",
+            "aicollab_token=" + auth.token() + "; Path=/; HttpOnly; SameSite=Strict",
+        )
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _authorized(self):
+        expected = auth.token()
+        supplied = self.headers.get("X-Chatroom-Token", "")
+        authorization = self.headers.get("Authorization", "")
+        if not supplied and authorization.startswith("Bearer "):
+            supplied = authorization[len("Bearer "):].strip()
+        if not supplied:
+            for part in self.headers.get("Cookie", "").split(";"):
+                name, _, value = part.strip().partition("=")
+                if name == "aicollab_token":
+                    supplied = unquote(value)
+        return bool(expected and supplied and hmac.compare_digest(expected, supplied))
 
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
         project = (query.get("project") or [None])[0]
+        if path == "/api/health":
+            self._json({"ok": True, "status": "healthy", "auth_required": True})
+            return
+        if path.startswith("/api/") and not self._authorized():
+            self._json({"ok": False, "error": "unauthorized"}, 401)
+            return
         if path == "/api/messages":
             since = 0
             try:
@@ -337,7 +366,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/sessions":
             self._json({"ok": True, **session_registry.load_registry()})
         elif path == "/api/config":
-            self._json({"ok": True, "config": load_config(), "auto_release_disabled": True})
+            config = load_config()
+            config.pop("auth_token", None)
+            self._json({"ok": True, "config": config, "auto_release_disabled": True})
         elif path == "/api/roster":
             self._json({
                 "ok": True,
@@ -370,6 +401,37 @@ class Handler(BaseHTTPRequestHandler):
             })
         elif path == "/api/projects":
             self._json({"ok": True, "projects": chatutil.known_projects()})
+        elif path == "/api/stream":
+            since = 0
+            try:
+                since = int((query.get("since") or ["0"])[0])
+            except Exception:
+                pass
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            try:
+                self.wfile.write(b": connected\n\n")
+                self.wfile.flush()
+                deadline = time.time() + 300
+                while time.time() < deadline:
+                    messages = load_messages_cached(project)
+                    fresh = [m for m in messages if int(m.get("id", 0)) > since]
+                    for message in fresh:
+                        payload = json.dumps(message, ensure_ascii=False).encode("utf-8")
+                        self.wfile.write(b"event: message\n")
+                        self.wfile.write(b"data: " + payload + b"\n\n")
+                        since = max(since, int(message.get("id", 0)))
+                    if fresh:
+                        self.wfile.flush()
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    time.sleep(1)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         elif path == "/api/transcript":
             paths = chatutil.project_paths(project)
             if os.path.exists(paths["transcript"]):
@@ -409,6 +471,9 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path not in ("/api/send", "/api/upload", "/api/sessions/refresh", "/api/config", "/api/roster", "/api/commander", "/api/shutdown"):
             self._json({"ok": False, "error": "not found"}, 404)
             return
+        if not self._authorized():
+            self._json({"ok": False, "error": "unauthorized"}, 401)
+            return
         if parsed.path == "/api/sessions/refresh":
             self._json({"ok": True, **session_registry.record_once()})
             return
@@ -425,6 +490,7 @@ class Handler(BaseHTTPRequestHandler):
                     if key in data:
                         config[key] = data[key]
                 save_config(config)
+                config.pop("auth_token", None)
                 self._json({"ok": True, "config": config, "restart_required": True})
             except Exception as exc:
                 self._json({"ok": False, "error": "config failed: %r" % exc}, 400)
@@ -498,6 +564,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def run_server(port=PORT):
     ensure_dirs()
+    auth.token()
     ensure_transcript()
     session_registry.start_background_watcher(2.0)
     server = ThreadingHTTPServer((HOST, port), Handler)

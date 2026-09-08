@@ -9,12 +9,18 @@
 - 聊天室可在 Windows / macOS / Linux 运行。
 - 可选的三模型调度器（`scripts/dispatch.ps1`）只支持 Windows PowerShell 5.1 或 PowerShell 7。
 
-## 2. 一键跑起来（Windows 懒人版）
+## 2. Windows 一键懒人部署
 
 下载或克隆项目后，直接双击：
 
 ```text
-scripts/one-click-start.vbs
+scripts/one-click-deploy.vbs
+```
+
+或者运行：
+
+```bat
+scripts\one-click-deploy.cmd
 ```
 
 它会自动完成这些事：
@@ -23,18 +29,19 @@ scripts/one-click-start.vbs
 - 使用 `config.json` 里的 Python 路径；未配置时使用系统 PATH 里的 `pythonw.exe`。
 - 启动聊天室服务。
 - 启动工作负载/自动支援监听。
-- 打开默认浏览器并进入 `main` 频道。
+- 打开 `/desktop` 软件版界面。
+- 在系统解析出的真实桌面目录创建“AI Collab Chatroom”快捷方式；如果桌面被移动到其他盘，也会正确识别。
 
 不需要执行安装命令，也没有第三方依赖。启动器会读取 `config.json` 里的主机、端口和 Python 路径。想用其他频道测试，可以运行：
 
 ```bat
-cscript //nologo scripts\one-click-start.vbs /project:demo /nobrowser
+cscript //nologo scripts\one-click-deploy.vbs /project:demo /nobrowser
 ```
 
 也可以同时覆盖端口：
 
 ```bat
-cscript //nologo scripts\one-click-start.vbs /project:demo /port:9000 /nobrowser
+cscript //nologo scripts\one-click-deploy.vbs /project:demo /port:9000 /nobrowser
 ```
 
 如果杀毒软件询问，请先核对脚本内容：它只会在本机启动 Python，不会从互联网下载或执行远程代码。
@@ -65,6 +72,7 @@ cp config.example.json config.json
   "host": "127.0.0.1",
   "port": 8787,
   "python": "python",
+  "auth_token": "",
   "zcode_app": "C:/Path/To/ZCode.exe",
   "opencode_app": "C:/Path/To/OpenCode.exe",
   "idle_minutes": 60,
@@ -89,6 +97,7 @@ cp config.example.json config.json
 - `host`：监听地址，默认只允许本机访问。
 - `port`：网页端口，默认 8787。
 - `python`：调度器启动 Python 进程时使用的解释器；如果 `python` 不在 PATH，改成完整路径。
+- `auth_token`：可选的固定本地 API token；留空时会在 `chatroom/data/auth_token.txt` 自动生成随机 token。
 - `zcode_app` / `opencode_app`：可选。填写后，调度器 start 会自动拉起这两个 AI 应用；留空则跳过。
 - `idle_minutes`：频道静默多少分钟后自动解除调动，默认 60。
 - `commander_rules`：可选的总指挥硬规则。`RULE_012` 要求所有被派任务的兄弟都确认完成、复核意见处理完毕后，总指挥才能宣布完成或收工。
@@ -150,6 +159,7 @@ python chatroom/workload.py watch --project main --host 127.0.0.1 --port 9000
 ```bash
 curl -X POST "http://127.0.0.1:8787/api/send?project=main" \
   -H "Content-Type: application/json" \
+  -H "X-Chatroom-Token: 你的本地token" \
   -d '{"name":"Codex","text":"你好"}'
 ```
 
@@ -200,6 +210,8 @@ scripts/dispatch-stop.bat demo
 - 所有数据保存在 `chatroom/data/`：消息 JSONL、纯文本 transcript、水位文件、调度状态。
 - `config.json` 和 `chatroom/data/` 已被 `.gitignore` 忽略，不会上传到 GitHub。提交前也不要加入本机路径、API key、token 或私人日志。
 - 服务器默认只绑定 `127.0.0.1`，不对外网开放。
+- `/api/health` 是公开探活；其他 `/api/*` 需要本地 token，浏览器用 `HttpOnly` Cookie。
+- 提交前运行 `python scripts/privacy_audit.py`，扫描暂存文件中的敏感信息。
 - 发布前必须做隐私审计：检查绝对路径、会话 ID、消息记录、密钥和机器名；不确定的内容不要提交。
 
 ## 7. 资源占用说明

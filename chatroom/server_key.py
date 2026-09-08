@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chatutil  # noqa: E402
+CREATE_NO_WINDOW = 0x08000000
 
 k32 = ctypes.WinDLL("kernel32", use_last_error=True)
 ntdll = ctypes.WinDLL("ntdll")
@@ -82,6 +83,7 @@ def find_main_pid():
          "(Get-CimInstance Win32_Process -Filter \"Name='OpenCode.exe'\" | "
          "Where-Object { $_.CommandLine -notmatch '--type=' }).ProcessId"],
         capture_output=True, text=True, timeout=15,
+        creationflags=CREATE_NO_WINDOW,
     )
     pids = [int(x) for x in out.stdout.split() if x.strip().isdigit()]
     if not pids:
@@ -92,8 +94,9 @@ def find_main_pid():
 def find_all_pids():
     out = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
-         "(Get-CimInstance Win32_Process -Filter \"Name='OpenCode.exe'\").ProcessId"],
+        "(Get-CimInstance Win32_Process -Filter \"Name='OpenCode.exe'\").ProcessId"],
         capture_output=True, text=True, timeout=15,
+        creationflags=CREATE_NO_WINDOW,
     )
     return [int(x) for x in out.stdout.split() if x.strip().isdigit()]
 
@@ -119,8 +122,9 @@ def find_listen_port(pid):
     out = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
          "Get-NetTCPConnection -State Listen -OwningProcess %d -ErrorAction SilentlyContinue | "
-         "Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object -ExpandProperty LocalPort" % pid],
+        "Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object -ExpandProperty LocalPort" % pid],
         capture_output=True, text=True, timeout=15,
+        creationflags=CREATE_NO_WINDOW,
     )
     ports = sorted({int(x) for x in out.stdout.split() if x.strip().isdigit()})
     return ports
