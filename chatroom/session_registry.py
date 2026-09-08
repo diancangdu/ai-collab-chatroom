@@ -10,6 +10,7 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 RUNTIME = Path(__file__).resolve().parent
@@ -20,6 +21,14 @@ CODEX_HOME = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
 CODEX_SESSIONS = CODEX_HOME / "sessions"
 CODEX_SESSION_INDEX = CODEX_HOME / "session_index.jsonl"
 ZCODE_DB = Path(os.environ.get("ZCODE_DB", Path.home() / ".zcode" / "cli" / "db" / "db.sqlite"))
+QODER_DB = Path(os.environ.get(
+    "QODER_DB",
+    Path.home() / "AppData" / "Roaming" / "com.qodercn.app.stable" / "main.sqlite",
+))
+QODER_SETTINGS = Path(os.environ.get(
+    "QODER_SETTINGS",
+    Path.home() / ".qoder-cn" / "settings.json",
+))
 SERVER_KEY = RUNTIME / "server_key.py"
 
 
@@ -200,11 +209,58 @@ def detect_zcode():
         con.close()
 
 
+def detect_qoder():
+    con = sqlite3.connect(str(QODER_DB), timeout=5)
+    con.row_factory = sqlite3.Row
+    try:
+        row = con.execute(
+            """
+            SELECT session_id, title, cwd, model, permission_mode, updated_at
+            FROM chat_sessions
+            WHERE archived = 0 AND deleted_at IS NULL
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        if not row:
+            raise RuntimeError("no active Qoder session")
+        raw_model = row["model"] or ""
+        model_id = raw_model
+        provider = "Qoder"
+        provider_id = None
+        if raw_model.startswith("byok:"):
+            provider_id, model_id = raw_model[5:].split("/", 1) if "/" in raw_model[5:] else (raw_model[5:], "")
+            provider = "Qoder BYOK"
+            try:
+                providers = json.loads(QODER_SETTINGS.read_text(encoding="utf-8")).get("providers", {})
+                base_url = str(providers.get(provider_id, {}).get("baseUrl", ""))
+                host = urlparse(base_url).hostname
+                if host:
+                    provider = "Qoder BYOK " + host
+            except Exception:
+                provider = "Qoder BYOK " + provider_id if provider_id else provider
+        return {
+            "session_id": str(row["session_id"]),
+            "title": row["title"],
+            "cwd": row["cwd"],
+            "model": model_id,
+            "provider": provider,
+            "provider_id": provider_id,
+            "raw_model": raw_model,
+            "permission_mode": row["permission_mode"],
+            "updated_at": utc_ts(),
+            "source": "qoder_sqlite",
+        }
+    finally:
+        con.close()
+
+
 def record_once():
     detectors = {
         "Codex": detect_codex,
         "OpenCode": detect_opencode,
         "ZCode": detect_zcode,
+        "Qoder": detect_qoder,
     }
     registry = load_registry()
     agents = registry.get("agents", {}) if isinstance(registry, dict) else {}

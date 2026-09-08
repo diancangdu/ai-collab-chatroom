@@ -24,7 +24,7 @@ import server_locator
 
 POLL_SECONDS = 0.5
 REPLY_TIMEOUT = 20.0
-PING_RE = re.compile(r"(?:^|\s)@(?:二哥|zcode)\b", re.IGNORECASE)
+PING_RE = re.compile(r"(?:^|[^A-Za-z0-9])@(?:二哥|zcode)\b", re.IGNORECASE)
 INSTANT_RE = re.compile(r"(在吗|在不在|在线吗|桥测)")
 
 ZCODE_CONFIG = Path(os.environ.get("ZCODE_CONFIG", Path.home() / ".zcode" / "v2" / "config.json"))
@@ -149,7 +149,7 @@ def get_zcode_page_ws():
             return target["webSocketDebuggerUrl"]
     raise RuntimeError("ZCode CDP page not found")
 
-def inject_via_ui(user_text):
+async def inject_via_ui_async(user_text):
     """Submit through ZCode with trusted CDP input events and a DOM fallback."""
     import websockets
     text = user_text[:500]
@@ -190,7 +190,12 @@ def inject_via_ui(user_text):
     """
 
     async def run_cdp():
-        async with websockets.connect(get_zcode_page_ws(), max_size=10 * 1024 * 1024) as ws:
+        async with websockets.connect(
+            get_zcode_page_ws(),
+            max_size=10 * 1024 * 1024,
+            open_timeout=5,
+            close_timeout=2,
+        ) as ws:
             next_id = 0
 
             async def call(method, params):
@@ -234,7 +239,7 @@ def inject_via_ui(user_text):
                         "clickCount": 1,
                     })
                 await asyncio.sleep(0.2)
-            elif state.get("textLength"):
+            if state.get("textLength"):
                 for params in (
                     {"type": "rawKeyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13},
                     {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13, "text": "\r", "unmodifiedText": "\r"},
@@ -258,7 +263,7 @@ def inject_via_ui(user_text):
                 raise RuntimeError("ZCode message not submitted; input cleared")
             return {"ok": True}
 
-    return asyncio.run(run_cdp())
+    return await run_cdp()
 
 
 def cdp_evaluate(expression, timeout=4.0):
@@ -364,7 +369,7 @@ def main():
             new_messages, watermark = chatutil.tail_json_lines(paths["messages"], watermark)
             save_seen(watermark)
             for msg in new_messages:
-                if str(msg.get("name", "")) not in {"你", "Codex", "OpenCode"}:
+                if str(msg.get("name", "")) not in {"你", "Codex", "OpenCode", "Qoder"}:
                     continue
                 text = str(msg.get("text", "")).strip()
                 if not PING_RE.search(text):
@@ -373,7 +378,7 @@ def main():
                     continue
                 try:
                     try:
-                        inject_via_ui(text)
+                        asyncio.run(asyncio.wait_for(inject_via_ui_async(chatutil.image_prompt(text, msg)), timeout=12))
                         log(project, injected_ui=True, id=msg.get("id"))
                         reply = wait_for_ui_reply(text, timeout=120)
                         if reply:
@@ -382,7 +387,7 @@ def main():
                         else:
                             log(project, ui_reply_timeout=True, id=msg.get("id"))
                     except Exception as ui_exc:
-                        session_id = inject_session_input(text, project)
+                        session_id = inject_session_input(chatutil.image_prompt(text, msg), project)
                         log(project, injected_session=True, id=msg.get("id"), session_id=session_id, ui_error=str(ui_exc))
                 except Exception as exc:
                     log(project, session_error=str(exc), id=msg.get("id"))

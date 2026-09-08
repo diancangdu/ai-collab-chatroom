@@ -175,6 +175,62 @@ curl -X POST "http://127.0.0.1:8787/api/send?project=main" \
 
 `name` is optional and defaults to `你` / `You`.
 
+## Android bridge / Android 桥（默认关闭）
+
+`chatroom/android_bridge.py` serves a hardened Android control bridge. It is
+OFF unless its process is started with `--enable-bridge`; config and environment
+cannot enable it. While off, every endpoint answers `404`, indistinguishable
+from an unknown path. The server binds `127.0.0.1` only.
+
+```bash
+python chatroom/android_bridge.py serve --port 8790
+python chatroom/android_bridge.py serve --port 8790 --enable-bridge
+```
+
+### Security constraints / 安全硬约束
+
+1. Default off; disabled endpoints return `404`.
+2. Enabling requires double confirmation: `POST /api/android-bridge/enable`
+   returns a one-time `confirm_token` (60 s TTL); repeat the call with the
+   token to actually enable. The enable route is the only reachable endpoint
+   while the bridge is off.
+3. Loopback only (`127.0.0.1` hardcoded).
+4. Six-op whitelist: `ping`, `device.list`, `app.launch`, `app.stop`,
+   `key.event`, `text.input`. Everything else is rejected.
+5. argv-only subprocess calls (`shell=False`); `text.input` rejects shell
+   metacharacters because `adb shell` concatenates on-device.
+6. Per-command 10 s timeout under a global serial lock.
+7. Screenshots (`screen.capture`) are outside the whitelist and need a fresh
+   one-time token from `POST /api/android-bridge/screenshot/confirm` per call.
+8. Every attempt (allowed or rejected) is audited to
+   `chatroom/data/android_bridge_audit.jsonl` with five fields:
+   `ts`, `caller`, `op`, `params_present`, and a minimal `result` (`ok`,
+   `duration_ms`). Parameter values, package names, typed text, stdout, stderr,
+   and device output are never persisted.
+
+### Endpoints / 接口
+
+- `GET /api/android-bridge/ping` — liveness (bridge must be enabled).
+- `POST /api/android-bridge/enable` — stage 1 returns `confirm_token`; stage 2
+  (same call + `{"confirm_token": "..."}`) enables.
+- `POST /api/android-bridge/disable` — immediately dark.
+- `POST /api/android-bridge/exec` — body:
+  `{"op":"app.launch","params":{"package":"com.example.app"}}`.
+- `POST /api/android-bridge/screenshot/confirm` — issue a one-time screenshot
+  token.
+
+### Security test suite / 安全测试
+
+```bash
+python scripts/test_android_bridge.py
+```
+
+24 tests cover: default-off 404, auth 401, double-confirm and token TTL/single
+use, whitelist rejection, package/keycode/text validation incl. shell
+metacharacter injection, argv list (never string) with `shell=False`, command
+timeout, serial-lock ordering, screenshot per-call confirm, loopback bind,
+content-free five-field audit, and CLI-only enablement.
+
 ## CLI / 命令行
 
 ```bash

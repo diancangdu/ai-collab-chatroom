@@ -102,7 +102,10 @@ def start_app(path):
         )
         if name.lower() in (check.stdout or "").lower():
             return None
-        subprocess.Popen([str(path)], creationflags=CREATE_NO_WINDOW)
+        args = [str(path)]
+        if "qoder" in name.lower():
+            args.append("--remote-debugging-port=9223")
+        subprocess.Popen(args, creationflags=CREATE_NO_WINDOW)
         return str(path)
     except Exception:
         return None

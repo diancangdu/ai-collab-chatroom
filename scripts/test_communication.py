@@ -41,7 +41,7 @@ def check(name, condition, detail=""):
 
 def main():
     shells = [
-        ("/desktop", "三模型协作"),
+        ("/desktop", "四模型协作"),
         ("/desktop.css", ".desktop"),
         ("/desktop.js", "serviceWorker"),
         ("/manifest.webmanifest", '"start_url": "/desktop"'),

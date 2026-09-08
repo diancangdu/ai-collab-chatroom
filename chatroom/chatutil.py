@@ -74,3 +74,11 @@ def tail_json_lines(path, pos):
     except Exception:
         pass
     return out, pos
+
+
+def image_prompt(text, msg):
+    """把聊天室图片附件转换成兄弟可读取的本地提示。"""
+    image_path = str(msg.get("image_path") or "") if isinstance(msg, dict) else ""
+    if not image_path:
+        return text
+    return text + "\n（图片路径：%s）请读取这张图片并结合内容回复。" % image_path
