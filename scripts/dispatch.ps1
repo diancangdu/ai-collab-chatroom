@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Force -Path $DispatcherDir | Out-Null
 $Config = @{}
 $ConfigPath = Join-Path $Root "config.json"
 if (Test-Path $ConfigPath) {
-    try { $Config = Get-Content $ConfigPath -Raw | ConvertFrom-Json } catch { $Config = @{} }
+    try { $Config = Get-Content $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $Config = @{} }
 }
 
 $HostAddr = if ($Config.host) { [string]$Config.host } else { "127.0.0.1" }
