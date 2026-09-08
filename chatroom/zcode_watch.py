@@ -286,7 +286,7 @@ def cdp_evaluate(expression, timeout=4.0):
 
 def wait_for_ui_reply(user_text, timeout=75.0, marker=""):
     """Capture the assistant turn following the injected user turn in the UI."""
-    marker_match = re.search(r"\b\d{14}\b", user_text or "")
+    marker_match = re.search(r"\b(?:\d{14}|\d{8}-\d{6})\b", user_text or "")
     needle = marker or (marker_match.group(0) if marker_match else user_text[:500])
     expression = r"""
     (() => {
@@ -318,7 +318,7 @@ def wait_for_ui_reply(user_text, timeout=75.0, marker=""):
             value = cdp_evaluate(expression, timeout=4)
             if isinstance(value, dict) and value.get("found"):
                 text = str(value.get("text", "")).strip()
-                if text and text == last:
+                if text and text == last and (not marker_match or marker_match.group(0) in text):
                     return text
                 last = text
         except Exception:
