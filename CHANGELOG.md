@@ -26,6 +26,8 @@
   refresh.
 - Project dispatch now launches both sibling bridge watchers and the workload
   desk. Mention routing accepts `@ZCode` / `@OpenCode` anywhere in the message.
+- Added a shared OpenCode rate limiter, longer bridge cooldowns, and disabled
+  non-essential digest calls to reduce TPM/RPM failures without changing model.
 
 ### Privacy audit
 

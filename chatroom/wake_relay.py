@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chatutil
+import rate_limit
 import server_locator
 
 
@@ -33,7 +34,8 @@ WATCHER_GRACE_TIMEOUT = 90
 FIRE_COOLDOWN = 180
 API_COOLDOWN = 90
 AUTOACK_COOLDOWN = 45
-DIGEST_INTERVAL = 900
+DIGEST_INTERVAL = 0
+OPENCODE_MIN_INTERVAL_SECONDS = 300
 ROUTE_PREF_UNTIL = time.mktime(time.strptime("2026-09-07 00:00:00", "%Y-%m-%d %H:%M:%S"))
 ACTIVITY_WINDOW = 20
 OPENCODE_EXE = os.environ.get("OPENCODE_EXE", "")
@@ -314,6 +316,12 @@ def api_wake(project, mention_text):
     """Primary wake: POST the task straight into OpenCode's live session via
     its local sidecar API. Credentials are read from the app's process memory
     on every call (server_key.py stdout) and never touch disk."""
+    if not rate_limit.try_acquire(
+        provider="opencode",
+        min_interval_seconds=OPENCODE_MIN_INTERVAL_SECONDS,
+    ):
+        log(project, "api wake skipped: OpenCode rate limiter busy")
+        return False
     try:
         out = subprocess.run(
             [PYTHONW, str(Path(__file__).resolve().parent / "server_key.py"), "--json"],
@@ -329,10 +337,10 @@ def api_wake(project, mention_text):
         target = max(cands or sessions, key=lambda s: (s.get("time", {}).get("updated") or s.get("time", {}).get("created") or 0))
         paths = chatutil.project_paths(project)
         prompt = (
-            "聊天室有@你的新消息（项目%s），请立即处理：读取 %s 最后20行，"
+            "聊天室有@你的新消息（项目%s）。不要读取大文件，不要展开分析，"
             "按协作铁律用命令行回复：python \"%s\" send --name OpenCode --project %s --text \"...\"。"
             "触发消息：%s"
-        ) % (project, paths["transcript"], Path(__file__).resolve().parent / "chatroom.py", project, mention_text)
+        ) % (project, Path(__file__).resolve().parent / "chatroom.py", project, mention_text)
         body = json.dumps({"parts": [{"type": "text", "text": prompt}]}, ensure_ascii=False).encode("utf-8")
         preq = urllib.request.Request(
             "http://127.0.0.1:%s/session/%s/message" % (k["port"], target["id"]),

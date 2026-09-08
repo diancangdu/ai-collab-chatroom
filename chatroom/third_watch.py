@@ -20,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chatutil
+import rate_limit
 import roster
 import server_locator
 
@@ -27,6 +28,7 @@ import server_locator
 POLL_SECONDS = 0.1
 REPLY_TIMEOUT = 120.0
 PRIMARY_WAIT_SECONDS = 180.0
+OPENCODE_MIN_INTERVAL_SECONDS = 300
 PING_RE = re.compile(r"(?:^|\s)@(?:三哥|三弟|opencode)\b", re.IGNORECASE)
 INSTANT_RE = re.compile(r"(在吗|在不在|在线吗|桥测)")
 SEEN_NAME = "third_direct_seen.txt"
@@ -221,7 +223,13 @@ Start-Sleep -Milliseconds 100
         raise RuntimeError((run.stderr or run.stdout).strip()[:500])
 
 
-def submit_prompt(base, headers, session_id, user_text):
+def submit_prompt(base, headers, session_id, user_text, project=None):
+    if not rate_limit.try_acquire(
+        provider="opencode",
+        min_interval_seconds=OPENCODE_MIN_INTERVAL_SECONDS,
+    ):
+        log(project, rate_limit_skipped=True)
+        return False
     prompt = (
         "你是三哥。用户在聊天室呼叫："
         f"{user_text[:500]}。"
@@ -234,6 +242,7 @@ def submit_prompt(base, headers, session_id, user_text):
     }, ensure_ascii=False).encode("utf-8")
     url = base + "/session/" + session_id + "/prompt"
     request_json(url, headers, timeout=8, data=body, method="POST")
+    return True
 
 
 class ProviderError(RuntimeError):
@@ -366,7 +375,11 @@ def main():
                     key, headers = credentials()
                     base = "http://127.0.0.1:" + str(key["port"]) + "/api"
                     session_id = target_session(base, headers, project)
-                    submit_prompt(base, headers, session_id, pending["text"])
+                    submitted = submit_prompt(
+                        base, headers, session_id, pending["text"], project
+                    )
+                    if not submitted:
+                        continue
                     log(project, delivered=True, id=pending["original"].get("id"), session=session_id)
                     reply = wait_for_reply(base, headers, session_id, started_at)
                     if reply:
