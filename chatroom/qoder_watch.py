@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -23,6 +24,7 @@ PING_RE = re.compile(r"(?:^|\s)@(?:四哥|qoder)\b", re.IGNORECASE)
 RUNTIME = Path(__file__).resolve().parent
 LOG_PATH = RUNTIME / "data" / "qoder_watch.log"
 SEEN_FILE = RUNTIME / "data" / "qoder_direct_seen.txt"
+BRIDGE_SESSION_FILE = RUNTIME / "data" / "qoder_bridge_session.txt"
 NODE_PATH = Path(
     r"C:\Users\64560\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
 )
@@ -84,6 +86,20 @@ def config_dir():
     return Path(os.environ["QODER_CONFIG_DIR"]) if os.environ.get("QODER_CONFIG_DIR") else CONFIG_DIR
 
 
+def bridge_session_args():
+    try:
+        value = BRIDGE_SESSION_FILE.read_text(encoding="ascii").strip()
+        if value:
+            uuid.UUID(value)
+            return ["--resume", value]
+    except Exception:
+        pass
+    value = str(uuid.uuid4())
+    BRIDGE_SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BRIDGE_SESSION_FILE.write_text(value, encoding="ascii")
+    return ["--session-id", value, "--name", "通信桥（四哥）"]
+
+
 def ask_qoder(project, text):
     prompt = (
         "聊天室消息（项目 " + project + "）：\n" + text[:4000] + "\n"
@@ -93,7 +109,8 @@ def ask_qoder(project, text):
         str(node_path()),
         str(cli_path()),
         "--config-dir", str(config_dir()),
-        "--cwd", str(Path.home()),
+        "--cwd", str(RUNTIME.parent),
+        *bridge_session_args(),
         "--permission-mode", "dont_ask",
         "--tools", "",
         "--output-format", "text",
