@@ -52,10 +52,13 @@ def run(project, timeout=180.0):
     paths = chatutil.project_paths(project)
     _, watermark = chatutil.tail_json_lines(paths["messages"], 0)
     marker = time.strftime("%Y%m%d%H%M%S")
+    server_time = time.strftime("%Y-%m-%d %H:%M:%S")
     prompt = (
         "开机通信测试 @ZCode @OpenCode：请各自回复一行，格式为 "
-        "ACK %s <当前时间YYYY-MM-DD HH:MM:SS>。时间误差须小于2分钟。"
-        % marker
+        "ACK %s %s。时间误差须小于2分钟。"
+        "服务器时间：%s，必须使用该日期，不要使用模型内置日期。"
+        "只回复这一行，不要解释。"
+        % (marker, server_time, server_time)
     )
     send(project, prompt)
     expected = {"ZCode", "OpenCode"}

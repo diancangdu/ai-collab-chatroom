@@ -377,8 +377,14 @@ def main():
                 if "ZCode" not in roster.load_roster():
                     continue
                 try:
+                    server_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                    prompt_text = (
+                        "权威服务器时间：" + server_time + "。"
+                        "若回复需要当前时间，必须原样使用这个完整时间；不要自行计算，不要使用模型内置日期。\n"
+                        + chatutil.image_prompt(text, msg)
+                    )
                     try:
-                        asyncio.run(asyncio.wait_for(inject_via_ui_async(chatutil.image_prompt(text, msg)), timeout=12))
+                        asyncio.run(asyncio.wait_for(inject_via_ui_async(prompt_text), timeout=12))
                         log(project, injected_ui=True, id=msg.get("id"))
                         reply = wait_for_ui_reply(text, timeout=120)
                         if reply:

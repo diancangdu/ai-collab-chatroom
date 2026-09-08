@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -223,6 +224,61 @@ Start-Sleep -Milliseconds 100
         raise RuntimeError((run.stderr or run.stdout).strip()[:500])
 
 
+def run_cli_prompt(user_text, project):
+    """Use OpenCode 2.0 CLI as the primary local bridge."""
+    npm_exec = shutil.which("npx.cmd") or shutil.which("npx")
+    if not npm_exec:
+        raise RuntimeError("OpenCode CLI is not installed")
+    prompt = (
+        "你是三哥。用户在聊天室呼叫："
+        f"{user_text[:500]}。"
+        "只回一句中文，不超过 30 字，自然、有判断，不要计划，不要动作。"
+    )
+    command = [
+        npm_exec,
+        "--yes",
+        "@opencode-ai/cli",
+        "run",
+        "--format",
+        "json",
+        "--auto",
+        "--model",
+        "opencode_01/deepseek-v4-flash",
+    ]
+    bridge_sid = ""
+    if BRIDGE_SESSION_FILE.exists():
+        bridge_sid = BRIDGE_SESSION_FILE.read_text(encoding="ascii").strip()
+        if bridge_sid.startswith("ses_"):
+            command.extend(["--session", bridge_sid])
+    command.append(prompt)
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        timeout=REPLY_TIMEOUT,
+        cwd=str(RUNTIME.parent),
+        creationflags=CREATE_NO_WINDOW,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError((completed.stderr or completed.stdout or "OpenCode CLI failed").strip()[:500])
+    reply = ""
+    for line in completed.stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except Exception:
+            continue
+        if event.get("type") == "text":
+            part = event.get("part") or {}
+            reply = str(part.get("text", "")).strip()
+        if event.get("sessionID"):
+            session_id = str(event["sessionID"])
+            if session_id.startswith("ses_") and session_id != bridge_sid:
+                BRIDGE_SESSION_FILE.write_text(session_id, encoding="ascii")
+    if not reply:
+        raise RuntimeError("OpenCode CLI returned no text")
+    return reply
+
+
 def submit_prompt(base, headers, session_id, user_text, project=None):
     if not rate_limit.try_acquire(
         provider="opencode",
@@ -367,28 +423,18 @@ def main():
                 log(project, primary_wait=True, id=msg.get("id"), wait_seconds=PRIMARY_WAIT_SECONDS)
             now = time.time()
             for trigger_id, pending in list(pending_backup.items()):
-                if now - pending["ts"] < PRIMARY_WAIT_SECONDS:
-                    continue
-                pending_backup.pop(trigger_id, None)
-                started_at = time.time()
                 try:
-                    key, headers = credentials()
-                    base = "http://127.0.0.1:" + str(key["port"]) + "/api"
-                    session_id = target_session(base, headers, project)
-                    submitted = submit_prompt(
-                        base, headers, session_id, pending["text"], project
-                    )
-                    if not submitted:
-                        continue
-                    log(project, delivered=True, id=pending["original"].get("id"), session=session_id)
-                    reply = wait_for_reply(base, headers, session_id, started_at)
+                    reply = run_cli_prompt(pending["text"], project)
                     if reply:
                         send_once(project, reply)
-                        log(project, backup_replied=True, id=pending["original"].get("id"), deduped=True)
+                        pending_backup.pop(trigger_id, None)
+                        log(project, cli_replied=True, id=pending["original"].get("id"))
                     else:
-                        log(project, backup_replied=False, id=pending["original"].get("id"), timeout=True)
+                        log(project, cli_replied=False, id=pending["original"].get("id"), timeout=True)
+                        pending_backup.pop(trigger_id, None)
                 except Exception as exc:
-                    log(project, backup_error=str(exc), id=pending["original"].get("id"))
+                    log(project, cli_error=str(exc), id=pending["original"].get("id"))
+                    pending_backup.pop(trigger_id, None)
         except Exception as exc:
             log(project, loop_error=str(exc))
         time.sleep(POLL_SECONDS)
