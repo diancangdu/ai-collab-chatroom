@@ -27,6 +27,7 @@ NODE_PATH = Path(
     r"C:\Users\64560\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe"
 )
 CONFIG_DIR = Path.home() / ".qoder-cn"
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 PYTHONW = str(Path(sys.executable).with_name("pythonw.exe"))
 if not Path(PYTHONW).exists():
     PYTHONW = sys.executable
@@ -105,6 +106,7 @@ def ask_qoder(project, text):
         timeout=REPLY_TIMEOUT,
         encoding="utf-8",
         errors="replace",
+        creationflags=CREATE_NO_WINDOW,
     )
     if result.returncode != 0:
         message = (result.stderr or result.stdout or "").strip()
