@@ -14,6 +14,7 @@
     { key: "Codex", label: "大哥 Codex", role: "总指挥", cls: "boss" },
     { key: "ZCode", label: "二哥 ZCode", role: "技术参谋", cls: "second" },
     { key: "OpenCode", label: "三弟 OpenCode", role: "执行者", cls: "third" }
+    ,{ key: "Qoder", label: "四哥 Qoder", role: "执行者", cls: "fourth" }
   ];
 
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -71,6 +72,7 @@
     if (name === "Codex") return "boss";
     if (name === "ZCode") return "second";
     if (name === "OpenCode") return "third";
+    if (name === "Qoder") return "fourth";
     if (name === "system") return "system";
     return "user";
   };

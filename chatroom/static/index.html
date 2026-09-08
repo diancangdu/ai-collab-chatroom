@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>三模型聊天室</title>
+  <title>四模型聊天室</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <h1>三模型聊天室</h1>
-        <p>Codex · ZCode · OpenCode 协作战</p>
+        <h1>四模型聊天室</h1>
+        <p>Codex · ZCode · OpenCode · Qoder 协作战</p>
       </div>
       <label class="project-picker">
         <span>项目</span>
@@ -30,6 +30,7 @@
       <div id="memberCodex" class="member boss"><span class="avatar">大</span><div><b>大哥 Codex</b><small>总指挥</small></div></div>
       <div id="memberZCode" class="member second"><span class="avatar">二</span><div><b>二哥 ZCode</b><small>技术参谋</small></div></div>
       <div id="memberOpenCode" class="member third"><span class="avatar">三</span><div><b>三弟 OpenCode</b><small>执行者</small></div></div>
+      <div id="memberQoder" class="member fourth"><span class="avatar">四</span><div><b>四哥 Qoder</b><small>执行者</small></div></div>
       <div class="member user"><span class="avatar">你</span><div><b>你</b><small>管理员</small></div></div>
       <div class="rule-box">先商量再动手，达成共识才执行。</div>
     </aside>
@@ -42,6 +43,7 @@
           <option value="Codex">大哥 Codex</option>
           <option value="ZCode">二哥 ZCode</option>
           <option value="OpenCode">三弟 OpenCode</option>
+          <option value="Qoder">四哥 Qoder</option>
         </select>
         <textarea id="text" rows="1" placeholder="写点什么，回车发送，Shift+回车换行"></textarea>
         <button type="button" id="imageBtn" aria-label="发送图片">图</button>
@@ -62,10 +64,11 @@
         <div id="startupContract" class="status-line">读取中…</div>
         <label>默认项目<input id="projectInput" type="text"></label>
         <label>端口<input id="portInput" type="number"></label>
-        <label class="check"><input id="autoStartApps" type="checkbox">自动启动三兄弟应用</label>
+        <label class="check"><input id="autoStartApps" type="checkbox">自动启动四兄弟应用</label>
         <label>Codex 路径<input id="codexAppInput" type="text"></label>
         <label>ZCode 路径<input id="zcodeAppInput" type="text"></label>
         <label>OpenCode 路径<input id="opencodeAppInput" type="text"></label>
+        <label>Qoder 路径<input id="qoderAppInput" type="text"></label>
         <div class="note">自动解除调动：已永久关闭</div>
         <button id="saveConfig">保存配置</button>
       </section>
@@ -74,7 +77,7 @@
         <div id="rosterStatus" class="status-line">读取中…</div>
         <div id="rosterBox" class="roster-box"></div>
         <pre id="rosterTasksPre" class="roster-tasks">读取中…</pre>
-        <div class="note">默认三兄弟全部纳入。临时退出后，其任务保留并由在列兄弟自动接管。</div>
+        <div class="note">默认四兄弟全部纳入。临时退出后，其任务保留并由在列兄弟自动接管。</div>
       </section>
       <section>
         <h3>通信状态</h3>

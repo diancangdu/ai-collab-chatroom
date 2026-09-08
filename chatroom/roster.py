@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.json"
 AUDIT_PATH = Path(__file__).resolve().parent / "data" / "roster.log"
-ALL_AGENTS = ("Codex", "ZCode", "OpenCode")
+ALL_AGENTS = ("Codex", "ZCode", "OpenCode", "Qoder")
 
 
 def default_roster():
@@ -26,6 +26,7 @@ def normalize_roster(value):
         "codex": "Codex", "大哥": "Codex",
         "zcode": "ZCode", "二哥": "ZCode",
         "opencode": "OpenCode", "三哥": "OpenCode", "三弟": "OpenCode",
+        "qoder": "Qoder", "四哥": "Qoder", "四弟": "Qoder",
     }
     seen = set()
     out = []
@@ -77,6 +78,7 @@ def is_active(name):
         "codex": "Codex", "大哥": "Codex",
         "zcode": "ZCode", "二哥": "ZCode",
         "opencode": "OpenCode", "三哥": "OpenCode", "三弟": "OpenCode",
+        "qoder": "Qoder", "四哥": "Qoder", "四弟": "Qoder",
     }
     canonical = aliases.get(str(name or "").strip().lower())
     return canonical in load_roster()

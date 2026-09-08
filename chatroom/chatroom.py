@@ -41,6 +41,9 @@ ROLES = {
     "二哥": "second",
     "opencode": "third",
     "三哥": "third",
+    "qoder": "fourth",
+    "四哥": "fourth",
+    "四弟": "fourth",
     "user": "user",
     "你": "user",
     "system": "system",
@@ -51,6 +54,7 @@ ROLE_LABELS = {
     "boss": "大哥 Codex",
     "second": "二哥 ZCode",
     "third": "三弟 OpenCode",
+    "fourth": "四哥 Qoder",
     "user": "你",
     "system": "系统",
 }
@@ -483,7 +487,7 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length", "0"))
                 data = json.loads(self.rfile.read(length).decode("utf-8"))
                 allowed = {
-                    "project", "port", "auto_start_apps", "codex_app", "zcode_app", "opencode_app",
+                    "project", "port", "auto_start_apps", "codex_app", "zcode_app", "opencode_app", "qoder_app",
                     "commander_rules",
                 }
                 config = load_config()
@@ -569,7 +573,7 @@ def run_server(port=PORT):
     ensure_transcript()
     session_registry.start_background_watcher(2.0)
     server = ThreadingHTTPServer((HOST, port), Handler)
-    print(f"三模型聊天室已启动: http://{HOST}:{port}")
+    print(f"四模型聊天室已启动: http://{HOST}:{port}")
     print(f"默认项目: {chatutil.DEFAULT_PROJECT}（支持 ?project=项目名 切换频道）")
     print(f"数据目录: {DATA_DIR}")
     print("其他模型发言示例:")
@@ -583,7 +587,7 @@ def run_server(port=PORT):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="三模型聊天室")
+    parser = argparse.ArgumentParser(description="四模型聊天室")
     sub = parser.add_subparsers(dest="cmd")
     server_p = sub.add_parser("server", help="启动聊天室服务")
     server_p.add_argument("--port", type=int, default=PORT)

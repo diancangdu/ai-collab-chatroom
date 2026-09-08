@@ -8,6 +8,7 @@ const commanderSel = document.getElementById("commanderSel");
 const memberCodex = document.getElementById("memberCodex");
 const memberZCode = document.getElementById("memberZCode");
 const memberOpenCode = document.getElementById("memberOpenCode");
+const memberQoder = document.getElementById("memberQoder");
 const controlDlg = document.getElementById("controlDlg");
 const panelBtn = document.getElementById("panelBtn");
 const closePanel = document.getElementById("closePanel");
@@ -19,6 +20,7 @@ const autoStartApps = document.getElementById("autoStartApps");
 const codexAppInput = document.getElementById("codexAppInput");
 const zcodeAppInput = document.getElementById("zcodeAppInput");
 const opencodeAppInput = document.getElementById("opencodeAppInput");
+const qoderAppInput = document.getElementById("qoderAppInput");
 const rosterStatus = document.getElementById("rosterStatus");
 const rosterBox = document.getElementById("rosterBox");
 const rosterTasksPre = document.getElementById("rosterTasksPre");
@@ -32,6 +34,7 @@ const AVATAR_TEXT = {
   boss: "大",
   second: "二",
   third: "三",
+  fourth: "四",
   user: "你",
   system: "系",
 };
@@ -45,6 +48,7 @@ const ROSTER_LABELS = {
   Codex: "大哥 Codex",
   ZCode: "二哥 ZCode",
   OpenCode: "三弟 OpenCode",
+  Qoder: "四哥 Qoder",
 };
 
 function apiUrl(path) {
@@ -65,6 +69,7 @@ function roleOf(name) {
   if (n.startsWith("codex") || n.includes("大哥")) return "boss";
   if (n.startsWith("zcode") || n.includes("二哥")) return "second";
   if (n.startsWith("opencode") || n.includes("三哥")) return "third";
+  if (n.startsWith("qoder") || n.includes("四哥") || n.includes("四弟")) return "fourth";
   if (n.startsWith("system") || n.includes("系统")) return "system";
   return "user";
 }
@@ -153,7 +158,7 @@ async function loadProjects() {
         opt.selected = p === project;
         projectSel.appendChild(opt);
       }
-      document.title = "三模型聊天室 · " + project;
+      document.title = "四模型聊天室 · " + project;
     }
   } catch (err) {
     // 服务未就绪时保留空选择器，刷新会自动重试
@@ -194,6 +199,7 @@ async function refreshControl() {
     if (document.activeElement !== codexAppInput) codexAppInput.value = config.config.codex_app || "";
     if (document.activeElement !== zcodeAppInput) zcodeAppInput.value = config.config.zcode_app || "";
     if (document.activeElement !== opencodeAppInput) opencodeAppInput.value = config.config.opencode_app || "";
+    if (document.activeElement !== qoderAppInput) qoderAppInput.value = config.config.qoder_app || "";
     renderCommander(commander.commander || "Codex");
     renderRoster(roster.active_agents || []);
     renderRosterTasks(workload.state || {});
@@ -217,8 +223,8 @@ function renderCommander(name) {
     }
   }
   commanderSel.value = name;
-  const defaults = { Codex: "执行位", ZCode: "技术参谋", OpenCode: "执行者" };
-  const members = { Codex: memberCodex, ZCode: memberZCode, OpenCode: memberOpenCode };
+  const defaults = { Codex: "执行位", ZCode: "技术参谋", OpenCode: "执行者", Qoder: "执行者" };
+  const members = { Codex: memberCodex, ZCode: memberZCode, OpenCode: memberOpenCode, Qoder: memberQoder };
   for (const [agent, member] of Object.entries(members)) {
     member.querySelector("small").textContent = agent === name ? "总指挥" : defaults[agent];
   }
@@ -287,6 +293,7 @@ async function saveConfig() {
     codex_app: codexAppInput.value.trim(),
     zcode_app: zcodeAppInput.value.trim(),
     opencode_app: opencodeAppInput.value.trim(),
+    qoder_app: qoderAppInput.value.trim(),
   };
   const res = await fetch("/api/config", {
     method: "POST",
@@ -298,7 +305,7 @@ async function saveConfig() {
 }
 
 async function shutdownService() {
-  if (!confirm("确认强制关闭隐藏服务器？三兄弟桥接也会一起停止。")) return;
+  if (!confirm("确认强制关闭隐藏服务器？四兄弟桥接也会一起停止。")) return;
   const res = await fetch("/api/shutdown", { method: "POST" });
   const data = await res.json();
   alert(data.ok ? "已发送强制关闭命令。" : data.error || "关闭失败");
@@ -310,7 +317,7 @@ projectSel.addEventListener("change", () => {
   const url = new URL(location.href);
   url.searchParams.set("project", project);
   history.replaceState(null, "", url);
-  document.title = "三模型聊天室 · " + project;
+  document.title = "四模型聊天室 · " + project;
   messagesEl.innerHTML = "";
   lastId = 0;
   refresh();

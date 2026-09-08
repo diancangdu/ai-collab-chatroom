@@ -9,11 +9,12 @@ import chatutil
 
 
 DEFAULT_COMMANDER = "Codex"
-ALL_AGENTS = ("Codex", "ZCode", "OpenCode")
+ALL_AGENTS = ("Codex", "ZCode", "OpenCode", "Qoder")
 ALIASES = {
     "codex": "Codex", "大哥": "Codex",
     "zcode": "ZCode", "二哥": "ZCode",
     "opencode": "OpenCode", "三哥": "OpenCode", "三弟": "OpenCode",
+    "qoder": "Qoder", "四哥": "Qoder", "四弟": "Qoder",
 }
 
 

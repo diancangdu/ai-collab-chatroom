@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hidden supervisor for the three-brother communication service."""
+"""Hidden supervisor for the sibling communication service."""
 
 import argparse
 import json
@@ -20,6 +20,7 @@ MONITOR = Path(__file__).resolve().parent / "monitor.py"
 WAKE_RELAY = Path(__file__).resolve().parent / "wake_relay.py"
 THIRD_WATCH = Path(__file__).resolve().parent / "third_watch.py"
 ZCODE_WATCH = Path(__file__).resolve().parent / "zcode_watch.py"
+QODER_WATCH = Path(__file__).resolve().parent / "qoder_watch.py"
 WORKLOAD = Path(__file__).resolve().parent / "workload.py"
 CREATE_NO_WINDOW = 0x08000000
 
@@ -112,6 +113,7 @@ def configured_apps(config):
         "Codex": str(config.get("codex_app") or ""),
         "ZCode": str(config.get("zcode_app") or ""),
         "OpenCode": str(config.get("opencode_app") or ""),
+        "Qoder": str(config.get("qoder_app") or ""),
     }
 
 
@@ -134,12 +136,13 @@ def start():
     children.append(launch(WAKE_RELAY, ["--project", project]))
     children.append(launch(THIRD_WATCH, ["--project", project]))
     children.append(launch(ZCODE_WATCH, ["--project", project]))
+    children.append(launch(QODER_WATCH, ["--project", project]))
     children.append(launch(WORKLOAD, ["watch", "--project", project]))
 
     apps = configured_apps(config)
     started_apps = []
     if config.get("auto_start_apps"):
-        for name in ("Codex", "ZCode", "OpenCode"):
+        for name in ("Codex", "ZCode", "OpenCode", "Qoder"):
             result = start_app(apps[name])
             if result:
                 started_apps.append(result)

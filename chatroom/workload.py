@@ -32,15 +32,22 @@ PROCESS_SCAN_SECONDS = 15.0
 CHAT_URL = "http://127.0.0.1:8787/api/send"
 LOG_NAME = "workload.log"
 
-AGENTS = ("Codex", "ZCode", "OpenCode")
-PROCESS_NAMES = {"codex.exe": "Codex", "zcode.exe": "ZCode", "opencode.exe": "OpenCode"}
+AGENTS = ("Codex", "ZCode", "OpenCode", "Qoder")
+PROCESS_NAMES = {
+    "codex.exe": "Codex",
+    "zcode.exe": "ZCode",
+    "opencode.exe": "OpenCode",
+    "qoder cn.exe": "Qoder",
+    "qoder.exe": "Qoder",
+}
 ALIASES = {
     "codex": "Codex", "大哥": "Codex",
     "zcode": "ZCode", "二哥": "ZCode",
     "opencode": "OpenCode", "三哥": "OpenCode", "三弟": "OpenCode",
+    "qoder": "Qoder", "四哥": "Qoder", "四弟": "Qoder",
 }
 MENTION_RE = re.compile(
-    r"@?(codex|大哥|zcode|二哥|opencode|三哥|三弟)\b", re.IGNORECASE)
+    r"@?(codex|大哥|zcode|二哥|opencode|三哥|三弟|qoder|四哥|四弟)\b", re.IGNORECASE)
 TASK_RE = re.compile(r"^[!！](?:任务|派单|支援|task)\s*(.+)$", re.IGNORECASE)
 CLAIM_RE = re.compile(r"^[!！](?:认领|接手)\s*(?:#)?([A-Za-z0-9_-]+)\s*$", re.IGNORECASE)
 DONE_RE = re.compile(r"^[!！](?:完成|done)\s*(?:#)?([A-Za-z0-9_-]+)\s*$", re.IGNORECASE)

@@ -105,6 +105,7 @@ body {
 .agent.boss .avatar { background: var(--green); }
 .agent.second .avatar { background: var(--blue); }
 .agent.third .avatar { background: var(--orange); }
+.agent.fourth .avatar { background: #c084fc; }
 .agent.user .avatar { background: #d7dee7; }
 
 .summary {
